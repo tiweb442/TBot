@@ -264,7 +264,7 @@ namespace Tbot.Services {
 			await Task.Delay(RandomizeHelper.CalcRandomInterval(IntervalType.AFewSeconds));
 
 			loggedIn = true;
-			log(LogLevel.Information, LogSender.Tbot, "Logged in!");			
+			log(LogLevel.Information, LogSender.Tbot, "Logged in!");
 
 			await InitUserData();
 
@@ -551,7 +551,7 @@ namespace Tbot.Services {
 			finally {
 				_settingsReloadSemaphore.Release();
 			}
-			
+
 		}
 
 		private void InitializeSleepMode() {
@@ -639,7 +639,7 @@ namespace Tbot.Services {
 			return;
 		}
 
-		public async Task TelegramGetCurrentAuction() {		
+		public async Task TelegramGetCurrentAuction() {
 			Auction auction;
 			try {
 				auction = await _ogameService.GetCurrentAuction();
@@ -920,10 +920,15 @@ namespace Tbot.Services {
 				}
 			}
 			try {
-				await _ogameService.JumpGate(origin, moondest, ships);
-				await SendTelegramMessage($"JumGate Done!");
+				var jg = await _ogameService.JumpGate(origin, moondest, ships);
+				if (jg.Success) {
+					await SendTelegramMessage($"JumpGate done. Cooldown: {jg.RechargeCountdown}s");
+				} else {
+					var msg = !string.IsNullOrWhiteSpace(jg.Error) ? jg.Error : $"cooldown {jg.RechargeCountdown}s";
+					await SendTelegramMessage($"JumpGate failed: {msg}");
+				}
 			} catch (Exception ex) {
-				await SendTelegramMessage($"JumGate Failed! Error: {ex.Message}");
+				await SendTelegramMessage($"JumpGate Failed! Error: {ex.Message}");
 			}
 		}
 
