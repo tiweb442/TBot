@@ -96,7 +96,7 @@ namespace Tbot.Workers.Brain {
 
 					var leaveCfg = _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate
 						.MinimumAmountOfShipsToBeLeftOnMoon;
-					Ships shipsToLeave = new Ships(
+					var shipsToLeave = new Ships(
 						lightFighter: (long) leaveCfg.LightFighter,
 						heavyFighter: (long) leaveCfg.HeavyFighter,
 						cruiser: (long) leaveCfg.Cruiser,
@@ -146,14 +146,13 @@ namespace Tbot.Workers.Brain {
 						var leftPoints = shipsToLeaveAdjusted.GetFleetPoints();
 						var teleportablePoints = totalPoints - leftPoints;
 
-						// Track all moons that have any teleportable points (> 0), before applying threshold
-						if (teleportablePoints > 0) {
-							DoLog(LogLevel.Debug, $"Moon {moon.Coordinate} teleportablePoints={teleportablePoints}");
-						}
-
 						// Keep qualified list for actual jump attempts
 						if (teleportablePoints >= minPointsToTeleport) {
+							DoLog(LogLevel.Debug, $"Moon {moon.Coordinate} qualifies for JumpGate with teleportablePoints={teleportablePoints}");
 							moonsWithTeleportablePoints.Add((moon, teleportablePoints));
+						} else {
+							DoLog(LogLevel.Debug, $"Moon {moon.Coordinate} does not qualify for JumpGate with teleportablePoints={teleportablePoints}, min required={minPointsToTeleport}");
+
 						}
 					}
 
@@ -172,11 +171,11 @@ namespace Tbot.Workers.Brain {
 					var teleportsPairs = new List<(Moon origin, Celestial destination)>();
 					teleportsPairs.Add((orderedMoons[0], moondest));
 
-					for (int i = 1; i + 1 < orderedMoons.Count; i += 2) {
+					for (var i = 1; i + 1 < orderedMoons.Count; i += 2) {
 						teleportsPairs.Add((orderedMoons[i], orderedMoons[i + 1]));
 					}
 
-					for (int i = 0; i < teleportsPairs.Count; i++) {
+					for (var i = 0; i < teleportsPairs.Count; i++) {
 						var origin = teleportsPairs[i].origin;
 						var destination = teleportsPairs[i].destination;
 						jumpGateAttempted = true;
