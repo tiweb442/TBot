@@ -90,6 +90,12 @@ namespace Tbot.Services {
 				return _fleetScheduler;
 			}
 		}
+		public IWorkerFactory WorkerFactory {
+			get {
+				return _workerFactory;
+			}
+		}
+
 		public long SleepDuration { get; set; }
 		public DateTime NextWakeUpTime { get; set; }
 

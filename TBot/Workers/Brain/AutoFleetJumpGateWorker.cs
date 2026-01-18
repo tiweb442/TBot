@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TBot.Common.Logging;
@@ -32,6 +33,7 @@ namespace Tbot.Workers.Brain {
 
 			if (!_tbotInstance.UserData.isSleeping) {
 				DoLog(LogLevel.Information, $"Starting jumpgate");
+				await SetDefaultWorkerPeriod();
 				try {
 					// Get target moon coordinates
 					var targetGalaxy = (int) _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate.Target.Galaxy;
@@ -248,16 +250,22 @@ namespace Tbot.Workers.Brain {
 				DoLog(LogLevel.Information, $"Next JumpGate check at {newTime.ToString()}");
 			} else {
 				// Set next interval using minutes (helper converts to ms)
-				int minIntervalMin = (int) _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate.CheckIntervalMin;
-				int maxIntervalMin = (int) _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate.CheckIntervalMax;
-				long interval = RandomizeHelper.CalcRandomInterval(minIntervalMin, maxIntervalMin);
-				if (interval <= 0)
-					interval = RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds);
-				var time = await _tbotOgameBridge.GetDateTime();
-				var newTime = time.AddMilliseconds(interval);
-				ChangeWorkerPeriod(interval);
+				var newTime = await SetDefaultWorkerPeriod();
 				DoLog(LogLevel.Information, $"Next JumpGate check at {newTime.ToString()}");
 			}
+		}
+
+		private async Task<DateTime> SetDefaultWorkerPeriod()
+		{
+			int minIntervalMin = (int) _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate.CheckIntervalMin;
+			int maxIntervalMin = (int) _tbotInstance.InstanceSettings.Brain.AutoFleepJumpGate.CheckIntervalMax;
+			long interval = RandomizeHelper.CalcRandomInterval(minIntervalMin, maxIntervalMin);
+			if (interval <= 0)
+				interval = RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds);
+			var time = await _tbotOgameBridge.GetDateTime();
+			var newTime = time.AddMilliseconds(interval);
+			ChangeWorkerPeriod(interval);
+			return newTime;
 		}
 
 		public override bool IsWorkerEnabledBySettings() {
@@ -281,6 +289,19 @@ namespace Tbot.Workers.Brain {
 
 		public override LogSender GetLogSender() {
 			return LogSender.AutoFleepJumpGate;
+		}
+
+		public async Task RunFromTelegramAsync()
+		{
+			try
+			{
+				await Execute();
+			}
+			catch (Exception ex)
+			{
+				DoLog(LogLevel.Error, $"Manual /fleetjumpgate execution failed: {ex.Message}");
+				throw;
+			}
 		}
 	}
 }
