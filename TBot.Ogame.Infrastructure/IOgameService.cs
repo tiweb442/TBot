@@ -44,7 +44,7 @@ namespace TBot.Ogame.Infrastructure {
 		Task<GalaxyInfo> GetGalaxyInfo(int galaxy, int system);
 		Task<LFBuildings> GetLFBuildings(Celestial celestial);
 		Task<LFTechs> GetLFTechs(Celestial celestial);
-		Task<LFBonuses> GetLFBonuses(Celestial celestial);
+		Task<LFBonuses> GetLFBonuses();
 		Task<Moon> GetMoon(Moon moon);
 		Task<List<Moon>> GetMoons();
 		Task<string> GetOgamedIP();
@@ -73,6 +73,8 @@ namespace TBot.Ogame.Infrastructure {
 		Task<string> GetTbotIP();
 		Task<Techs> GetTechs(Celestial celestial);
 		Task<CharacterClass> GetUserClass();
+		Task<List<Celestial>> GetEmpirePlanets();
+		Task<List<Celestial>> GetEmpireMoons();
 		Task<UserInfo> GetUserInfo();
 		Task<string> GetUsername();
 		Task<bool> HasAdmiral();
@@ -84,7 +86,6 @@ namespace TBot.Ogame.Infrastructure {
 		bool IsPortAvailable(string host, int port = 8080);
 		Task<bool> IsUnderAttack();
 		Task<bool> IsVacationMode();
-		Task JumpGate(Celestial origin, Celestial destination, Ships ships);
 		Task<bool> SendDiscovery(Celestial origin, Coordinate coords);
 		void KillOgamedExecutable(CancellationToken ct = default);
 		Task Login();
