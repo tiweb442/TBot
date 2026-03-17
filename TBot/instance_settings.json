@@ -447,7 +447,14 @@
 		"MaxSlots": 18,
 		"SlotsToLeaveFree": 1,
 		"CheckIntervalMin": 30,
-		"CheckIntervalMax": 60
+		"CheckIntervalMax": 60,
+		"Blacklist": {
+			"Active": true,
+			"ResetAfterHours": 20,
+			"MinimumResourcesToNotBlacklist": 1000000,
+			"ProcessAllReports": true
+		},
+		"StopAfterFullScan": true
 	},
 	"AutoHarvest": {
 		"Active": false,
@@ -504,12 +511,14 @@
 	},
 	"AutoDiscovery": {
 		"Active": false,
-		"Origin": {
-			"Galaxy": 5,
-			"System": 64,
-			"Position": 8,
-			"Type": "Planet"
-		},
+		"Origin": [
+			{
+				"Galaxy": 5,
+				"System": 64,
+				"Position": 8,
+				"Type": "Planet"
+			}
+		],
 		"MaxSlots": 5,
 		"MaxFailures": 5,
 		"RandomizeDestination": false,
