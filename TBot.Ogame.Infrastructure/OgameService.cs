@@ -584,6 +584,8 @@ namespace TBot.Ogame.Infrastructure {
 				}
 				parameters.Add(new KeyValuePair<string, string>("mission", ((int) mission).ToString()));
 
+				//if (mission == Missions.Expedition && duration > 0)
+				//	parameters.Add(new KeyValuePair<string, string>("duration", duration.ToString()));
 
 				parameters.Add(new KeyValuePair<string, string>("speed", speed.ToString()));
 				parameters.Add(new KeyValuePair<string, string>("metal", payload.Metal.ToString()));

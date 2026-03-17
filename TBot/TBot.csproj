@@ -76,6 +76,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="profiles\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TBot.Ogame.Infrastructure\TBot.Ogame.Infrastructure.csproj" />
     <ProjectReference Include="..\TBot.WebUI\TBot.WebUI.csproj" />
   </ItemGroup>
