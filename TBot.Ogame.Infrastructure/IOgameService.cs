@@ -86,6 +86,7 @@ namespace TBot.Ogame.Infrastructure {
 		bool IsPortAvailable(string host, int port = 8080);
 		Task<bool> IsUnderAttack();
 		Task<bool> IsVacationMode();
+		Task<JumpGateResult> JumpGate(Celestial origin, Celestial destination, Ships ships);
 		Task<bool> SendDiscovery(Celestial origin, Coordinate coords);
 		void KillOgamedExecutable(CancellationToken ct = default);
 		Task Login();

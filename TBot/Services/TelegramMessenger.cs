@@ -20,6 +20,7 @@ using Tbot.Helpers;
 using Serilog.Events;
 using Telegram.Bot.Types.ReplyMarkups;
 using Tbot.Workers;
+using Tbot.Workers.Brain;
 
 namespace Tbot.Services {
 
@@ -277,6 +278,8 @@ namespace Tbot.Services {
 				"/startautofarm",
 				"/stopautodiscovery",
 				"/startautodiscovery",
+				"/fleetjumpgate",
+				"/startautodiscovery",
 				"/profile"
 			};
 
@@ -353,14 +356,14 @@ namespace Tbot.Services {
 							else {
 								await SendMessage(botClient, message.Chat, "Telegram Logger is disabled.");
 							}
-							
+
 							return;
 						case "/setloglevel":
 							if (args.Length != 2) {
 								await SendMessage(botClient, message.Chat, "Usage is <code>/setloglevel Debug|Information|Warning|Error</code>");
 								return;
 							}
-							
+
 							if (Enum.TryParse<LogEventLevel>(args[1], true, out LogEventLevel newLevel) == true) {
 								await SendMessage(botClient, message.Chat, $"Enabling Telegram logger with level {newLevel.ToString()}");
 								_logger.AddTelegramLogger(Api, Channel);
@@ -456,6 +459,8 @@ namespace Tbot.Services {
 								"/stopautofarm - stop autofarm\n" +
 								"/startautofarm - start autofarm\n" +
 								"/stopautodiscovery - stop autodiscovery\n" +
+								"/startautodiscovery - start autodiscovery\n" +
+								"/fleetjumpgate - run jump gate worker immediately\n" +
 								"/startautodiscovery - start autodiscovery\n" +
 								"/profile - able to load one or multiple profiles. Format: <code>/profile ls/ls-r/reset/laod [profilename] [profilenameX] </code>\n"
 							, ParseMode.Html);
@@ -1097,6 +1102,28 @@ namespace Tbot.Services {
 
 								await currInstance.InitializeFeature(Feature.AutoDiscovery);
 								await SendMessage(botClient, message.Chat, "Autodiscovery started!");
+								return;
+
+							case "/fleetjumpgate":
+								if (args.Length != 1) {
+									await SendMessage(botClient, message.Chat, "No arguments accepted with this command!");
+									return;
+								}
+
+								AutoFleetJumpGateWorker worker = (AutoFleetJumpGateWorker) currInstance.WorkerFactory.GetWorker(Feature.BrainAutoFleepJumpGate);
+
+								if (worker == null) {
+									await SendMessage(botClient, message.Chat, "JumpGate worker not available.");
+									return;
+								}
+
+								await SendMessage(botClient, message.Chat, "Running JumpGate worker now...");
+								try {
+									await worker.RunFromTelegramAsync();
+									await SendMessage(botClient, message.Chat, "JumpGate worker completed.");
+								} catch (Exception ex) {
+									await SendMessage(botClient, message.Chat, $"Error during JumpGate execution: {ex.Message}");
+								}
 								return;
 
 

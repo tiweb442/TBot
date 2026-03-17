@@ -995,7 +995,7 @@ namespace TBot.Ogame.Infrastructure {
 			return await GetAsync<EspionageReport>($"/bot/espionage-report/{msgId}");
 		}
 
-		public async Task JumpGate(Celestial origin, Celestial destination, Ships ships) {
+		public async Task<JumpGateResult> JumpGate(Celestial origin, Celestial destination, Ships ships) {
 			List<KeyValuePair<string, string>> parameters = new List<KeyValuePair<string, string>>();
 
 			parameters.Add(new KeyValuePair<string, string>("moonDestination", destination.ID.ToString()));
@@ -1004,12 +1004,22 @@ namespace TBot.Ogame.Infrastructure {
 				long qty = (long) prop.GetValue(ships, null);
 				if (qty == 0)
 					continue;
-				if (Enum.TryParse<Buildables>(prop.Name, out Buildables buildable)) {
+
+				if (Enum.TryParse(prop.Name, out Buildables buildable)) {
 					parameters.Add(new KeyValuePair<string, string>("ships", $"{(int) buildable},{prop.GetValue(ships, null)}"));
 				}
 			}
 
-			await PostAsync<object>($"/bot/moons/{origin.ID}/jump-gate", parameters.ToArray());
+			try {
+				var result = await PostAsync<JumpGateResult>($"/bot/moons/{origin.ID}/jump-gate", parameters.ToArray());
+				return result;
+			} catch (HttpRequestException ex) {
+				return new JumpGateResult { Success = false, RechargeCountdown = 0, Error = ex.Message };
+			} catch (OgamedException ex) {
+				return new JumpGateResult { Success = false, RechargeCountdown = 0, Error = ex.Message };
+			} catch (Exception ex) {
+				return new JumpGateResult { Success = false, RechargeCountdown = 0, Error = ex.Message };
+			}
 		}
 
 		public async Task<List<Fleet>> Phalanx(Celestial origin, Coordinate coords) {
