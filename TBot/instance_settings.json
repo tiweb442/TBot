@@ -419,7 +419,7 @@
 		},
 		"RandomizeOrder": true,
 		"FuelToCarry": 20000,
-		"MaxExpeditionPerOrigin": 1,
+		"MaxExpeditionsPerOrigin": 1,
 		"Origin": [
 			{
 				"Galaxy": 5,
