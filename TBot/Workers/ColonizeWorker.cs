@@ -411,10 +411,12 @@ namespace Tbot.Workers {
 					// moment a check actually makes sense, so this is the only moment we hit the
 					// webserver for it.
 					var waitMs = (int) (nextArrival.ArriveIn * 1000) + (int) RandomizeHelper.CalcRandomInterval(IntervalType.AFewSeconds);
+					DoLog(LogLevel.Debug, $"Colonize fleet to {nextArrival.Destination} arrives in {nextArrival.ArriveIn}s, scheduling abandon-check for {TimeSpan.FromMilliseconds(waitMs)} from now.");
 					if (waitMs > 0) {
 						await Task.Delay(waitMs, ct);
 					}
 
+					DoLog(LogLevel.Information, "Colonize fleet should have landed, checking newly colonized planet(s) for abandon criteria.");
 					await CheckAndAbandonUnfitPlanets(ct);
 				} catch (OperationCanceledException) {
 					break;
@@ -439,8 +441,11 @@ namespace Tbot.Workers {
 			if (!await _abandonLock.WaitAsync(0, ct)) {
 				// Another abandon pass is already in progress (watcher or Execute()) - skip this
 				// round rather than block, the next tick will pick it up.
+				DoLog(LogLevel.Debug, "Skipping abandon-check, another one is already in progress.");
 				return;
 			}
+			DoLog(LogLevel.Information, "Checking celestials for planets to abandon.");
+			int abandonedCount = 0;
 			try {
 				Fields fieldsSettings = new() {
 					Total = (int) _tbotInstance.InstanceSettings.AutoColonize.Abandon.MinFields
@@ -461,6 +466,7 @@ namespace Tbot.Workers {
 							DoLog(LogLevel.Debug, $"This planet should be abandoned: {tempCelestial.ToString()}");
 							if (await _ogameService.AbandonCelestial(tempCelestial)) {
 								DoLog(LogLevel.Information, $"Successful Abandon on {tempCelestial.ToString()}.");
+								abandonedCount++;
 								await _tbotOgameBridge.CheckCelestials();
 							} else {
 								DoLog(LogLevel.Debug, $"Failed Abandon on {tempCelestial.ToString()}.");
@@ -471,6 +477,7 @@ namespace Tbot.Workers {
 					}
 				}
 			} finally {
+				DoLog(LogLevel.Information, $"Abandon-check complete, {abandonedCount} planet(s) abandoned.");
 				_abandonLock.Release();
 			}
 		}
