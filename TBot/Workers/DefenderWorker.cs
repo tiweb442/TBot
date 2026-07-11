@@ -33,6 +33,19 @@ namespace Tbot.Workers {
 			public CancellationTokenSource Cts;
 		}
 
+		// Tracks fleet IDs that were sent away by a fleetsave, per celestial, so they can be
+		// recalled once the attacker disappears from the attack list.
+		private static readonly ConcurrentDictionary<int, List<int>> _awaySavedFleets = new();
+
+		// Tracks a pending recall per celestial, so we don't schedule the same recall twice and
+		// can cancel it if a new attack shows up before it fires.
+		private static readonly ConcurrentDictionary<int, ScheduledRecall> _scheduledRecalls = new();
+
+		private class ScheduledRecall {
+			public DateTime ScheduledAtUtc;
+			public CancellationTokenSource Cts;
+		}
+
 		private readonly IFleetScheduler _fleetScheduler;
 		private readonly IOgameService _ogameService;
 		private readonly ITBotOgamedBridge _tbotOgameBridge;
@@ -62,8 +75,10 @@ namespace Tbot.Workers {
 					foreach (AttackerFleet attack in _tbotInstance.UserData.attacks) {
 						await HandleAttack(attack);
 					}
+					await CheckForFleetsToRecall(_tbotInstance.UserData.attacks);
 				} else {
 					DoLog(LogLevel.Information, "Your empire is safe");
+					await CheckForFleetsToRecall(new List<AttackerFleet>());
 				}
 				long interval = RandomizeHelper.CalcRandomInterval((int) _tbotInstance.InstanceSettings.Defender.CheckIntervalMin, (int) _tbotInstance.InstanceSettings.Defender.CheckIntervalMax);
 				if (interval <= 0)
@@ -152,200 +167,203 @@ namespace Tbot.Workers {
 					_handledAttackIds[attack.ID] = nowUtc;
 				}
 
-				if (_tbotInstance.UserData.celestials.Count() == 0) {
-					DateTime time = await _tbotOgameBridge.GetDateTime();
-					long interval = RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds);
-					DateTime newTime = time.AddMilliseconds(interval);
-					ChangeWorkerPeriod(TimeSpan.FromMilliseconds(interval));
-					DoLog(LogLevel.Warning, "Unable to handle attack at the moment: bot is still getting account info.");
-					DoLog(LogLevel.Information, $"Next check at {newTime.ToString()}");
-					return;
+			if (_tbotInstance.UserData.celestials.Count() == 0) {
+				DateTime time = await _tbotOgameBridge.GetDateTime();
+				long interval = RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds);
+				DateTime newTime = time.AddMilliseconds(interval);
+				ChangeWorkerPeriod(TimeSpan.FromMilliseconds(interval));
+				DoLog(LogLevel.Warning, "Unable to handle attack at the moment: bot is still getting account info.");
+				DoLog(LogLevel.Information,  $"Next check at {newTime.ToString()}");
+				return;
+			}
+
+			Celestial attackedCelestial = _tbotInstance.UserData.celestials.Unique().FirstOrDefault(planet => planet.HasCoords(attack.Destination));
+			if (attackedCelestial == null) {
+				DoLog(LogLevel.Warning, $"Unable to handle attack {attack.ID}: attacked celestial not found in account data.");
+				return;
+			}
+			attackedCelestial = await _tbotOgameBridge.UpdatePlanet(attackedCelestial, UpdateTypes.Ships);
+			try {
+				if ((bool)_tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.Active) {
+					attackedCelestial = await _tbotOgameBridge.UpdatePlanet(attackedCelestial, UpdateTypes.Resources);
+				}
+			} catch {
+			}
+
+
+			try {
+				var wlObj = _tbotInstance.InstanceSettings.Defender.WhiteList;
+				IEnumerable<long> whiteListIds = wlObj switch {
+					long[] a => a,
+					int[] a => a.Select(x => (long)x),
+					IEnumerable<long> e => e,
+					IEnumerable<int> e => e.Select(x => (long)x),
+					_ => Enumerable.Empty<long>()
+				};
+
+				if (!whiteListIds.Any() && wlObj != null) {
+					DoLog(LogLevel.Debug, $"Defender WhiteList present but unsupported type: {wlObj.GetType().FullName}");
 				}
 
-				Celestial attackedCelestial = _tbotInstance.UserData.celestials.Unique().FirstOrDefault(planet => planet.HasCoords(attack.Destination));
-				if (attackedCelestial == null) {
-					DoLog(LogLevel.Warning, $"Unable to handle attack {attack.ID}: attacked celestial not found in account data.");
-					return;
-				}
-				attackedCelestial = await _tbotOgameBridge.UpdatePlanet(attackedCelestial, UpdateTypes.Ships);
-				try {
-					if ((bool) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.Active) {
-						attackedCelestial = await _tbotOgameBridge.UpdatePlanet(attackedCelestial, UpdateTypes.Resources);
-					}
-				} catch {
-				}
-
-
-				try {
-					var wlObj = _tbotInstance.InstanceSettings.Defender.WhiteList;
-					IEnumerable<long> whiteListIds = wlObj switch {
-						long[] a => a,
-						int[] a => a.Select(x => (long) x),
-						IEnumerable<long> e => e,
-						IEnumerable<int> e => e.Select(x => (long) x),
-						_ => Enumerable.Empty<long>()
-					};
-
-					if (!whiteListIds.Any() && wlObj != null) {
-						DoLog(LogLevel.Debug, $"Defender WhiteList present but unsupported type: {wlObj.GetType().FullName}");
-					}
-
-					foreach (var playerId in whiteListIds) {
-						if (attack.AttackerID == playerId) {
-							DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: attacker {attack.AttackerName} whitelisted.");
-							return;
-						}
-					}
-				} catch (Exception ex) {
-					DoLog(LogLevel.Warning, $"An error has occurred while checking Defender WhiteList: {ex.Message}");
-				}
-
-				try {
-					if (attack.MissionType == Missions.MissileAttack) {
-						if ((bool) _tbotInstance.InstanceSettings.Defender.TelegramMessenger.Active) {
-							await _tbotInstance.SendTelegramMessage($"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} with IPM!");
-						}
-						DoLog(LogLevel.Information, $"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} with IPM!");
-						if (
-							!SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "DefendFromMissiles") ||
-							(SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "DefendFromMissiles") && (bool) _tbotInstance.InstanceSettings.Defender.DefendFromMissiles)
-						) {
-							Celestial defenderCelestial = attackedCelestial;
-							if (attackedCelestial.Coordinate.Type == Celestials.Moon) {
-								defenderCelestial = _tbotInstance.UserData.celestials.Unique().SingleOrDefault(planet => planet.HasCoords(new Coordinate {
-									Galaxy = attackedCelestial.Coordinate.Galaxy,
-									System = attackedCelestial.Coordinate.System,
-									Position = attackedCelestial.Coordinate.Position,
-									Type = Celestials.Planet
-								}));
-							}
-							if (defenderCelestial == null) {
-								DoLog(LogLevel.Warning, $"Missile attack detected on {attack.Destination.ToString()} but planet celestial was not found in account data. Skipping missile defence.");
-								return;
-							}
-							defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Facilities);
-							if (defenderCelestial.Facilities.MissileSilo >= 2) {
-								defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Defences);
-								defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Productions);
-								if (defenderCelestial.Productions.Count == 0) {
-									var availableSpace = defenderCelestial.Facilities.MissileSilo - defenderCelestial.Defences.AntiBallisticMissiles - (2 * defenderCelestial.Defences.InterplanetaryMissiles);
-									defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Resources);
-									if (availableSpace > 0) {
-										DoLog(LogLevel.Information, $"Building {availableSpace} AntiBallisticMissiles on {defenderCelestial.ToString()}");
-										await _ogameService.BuildDefences(defenderCelestial, Buildables.AntiBallisticMissiles, availableSpace);
-									} else {
-										DoLog(LogLevel.Information, $"Unable to build AntiBallisticMissiles on {defenderCelestial.ToString()}: there is no space");
-									}
-								} else {
-									DoLog(LogLevel.Information, $"Unable to build AntiBallisticMissiles on {defenderCelestial.ToString()}: a production is ongoing");
-								}
-							} else {
-								DoLog(LogLevel.Information, $"No MissileSilo level >= 2 on {defenderCelestial.ToString()}");
-							}
-						}
+				foreach (var playerId in whiteListIds) {
+					if (attack.AttackerID == playerId) {
+						DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: attacker {attack.AttackerName} whitelisted.");
 						return;
 					}
-					if (attack.Ships != null && _tbotInstance.UserData.researches.EspionageTechnology >= 8) {
-						if (SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "IgnoreProbes") && (bool) _tbotInstance.InstanceSettings.Defender.IgnoreProbes && attack.IsOnlyProbes()) {
-							if (attack.MissionType == Missions.Spy)
-								DoLog(LogLevel.Information, "Attacker sent only Probes! Espionage action skipped.");
-							else
-								DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: only Espionage Probes.");
+				}
+			} catch (Exception ex) {
+				DoLog(LogLevel.Warning, $"An error has occurred while checking Defender WhiteList: {ex.Message}");
+			}
 
-							return;
-						}
-						if (
-							(bool) _tbotInstance.InstanceSettings.Defender.IgnoreWeakAttack &&
-							attack.Ships.GetFleetPoints() < (attackedCelestial.Ships.GetFleetPoints() / (int) _tbotInstance.InstanceSettings.Defender.WeakAttackRatio)
-						) {
-							DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: weak attack.");
-							return;
-						}
-					} else {
-						DoLog(LogLevel.Information, "Unable to detect fleet composition.");
+			try {
+				if (attack.MissionType == Missions.MissileAttack) {
+					if ((bool) _tbotInstance.InstanceSettings.Defender.TelegramMessenger.Active) {
+						await _tbotInstance.SendTelegramMessage($"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} with IPM!");
 					}
-					var ignoreAttackIfIHaveActive = (bool) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.Active;
-					var totalResources = attackedCelestial.Resources?.TotalResources ?? 0;
-					var fleetPoints = attackedCelestial.Ships?.GetFleetPoints() ?? 0;
-
+					DoLog(LogLevel.Information, $"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} with IPM!");
 					if (
-						ignoreAttackIfIHaveActive &&
-						totalResources < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinResourcesToSave &&
-						(fleetPoints * 1000) < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinFleetToSave
+						!SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "DefendFromMissiles") ||
+						(SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "DefendFromMissiles") && (bool) _tbotInstance.InstanceSettings.Defender.DefendFromMissiles)
 					) {
-						DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: it's not worth it.");
-						return;
-					}
-				} catch {
-					DoLog(LogLevel.Warning, "An error has occurred while checking attacker fleet composition");
-				}
-
-				if ((bool) _tbotInstance.InstanceSettings.Defender.TelegramMessenger.Active) {
-					await _tbotInstance.SendTelegramMessage($"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} arriving at {attack.ArrivalTime.ToString()}");
-					if (attack.Ships != null) {
-						await Task.Delay(1000, _ct);
-						await _tbotInstance.SendTelegramMessage($"The attack is composed by: {attack.Ships.ToString()}");
-					}
-				}
-				DoLog(LogLevel.Warning, $"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attackedCelestial.ToString()} arriving at {attack.ArrivalTime.ToString()}");
-				if (attack.Ships != null) {
-					await Task.Delay(1000, _ct);
-					DoLog(LogLevel.Warning, $"The attack is composed by: {attack.Ships.ToString()}");
-				}
-
-				if ((bool) _tbotInstance.InstanceSettings.Defender.SpyAttacker.Active) {
-					_tbotInstance.UserData.slots = await _tbotOgameBridge.UpdateSlots();
-					if (attackedCelestial.Ships.EspionageProbe == 0) {
-						DoLog(LogLevel.Warning, "Could not spy attacker: no probes available.");
-					} else {
-						try {
-							Coordinate destination = attack.Origin;
-							Ships ships = new() { EspionageProbe = (int) _tbotInstance.InstanceSettings.Defender.SpyAttacker.Probes };
-							int fleetId = await _fleetScheduler.SendFleet(attackedCelestial, ships, destination, Missions.Spy, Speeds.HundredPercent, new Resources(), _tbotInstance.UserData.userInfo.Class);
-							var fleet = _tbotInstance.UserData.fleets.SingleOrDefault(f => f.ID == fleetId);
-							if (fleet == null) {
-								DoLog(LogLevel.Warning, $"SpyAttacker: SendFleet returned id={fleetId}, but fleet was not found in current fleet list (send may have failed or list not updated yet).");
-							} else {
-								DoLog(LogLevel.Information, $"Spying attacker from {attackedCelestial.ToString()} to {destination.ToString()} with {_tbotInstance.InstanceSettings.Defender.SpyAttacker.Probes} probes. Arrival at {fleet.ArrivalTime.ToString()}");
+						Celestial defenderCelestial = attackedCelestial;
+						if (attackedCelestial.Coordinate.Type == Celestials.Moon) {
+							 defenderCelestial = _tbotInstance.UserData.celestials.Unique().SingleOrDefault(planet => planet.HasCoords(new Coordinate {
+								 Galaxy = attackedCelestial.Coordinate.Galaxy,
+								 System = attackedCelestial.Coordinate.System,
+								 Position = attackedCelestial.Coordinate.Position,
+								 Type = Celestials.Planet
+							}));
+						}
+						if (defenderCelestial == null) {
+							DoLog(LogLevel.Warning, $"Missile attack detected on {attack.Destination.ToString()} but planet celestial was not found in account data. Skipping missile defence.");
+							return;
+						}
+						defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Facilities);
+						if (defenderCelestial.Facilities.MissileSilo >= 2) {
+							defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Defences);
+							defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Productions);
+							if (defenderCelestial.Productions.Count == 0) {
+								var availableSpace = defenderCelestial.Facilities.MissileSilo - defenderCelestial.Defences.AntiBallisticMissiles - (2 * defenderCelestial.Defences.InterplanetaryMissiles);
+								defenderCelestial = await _tbotOgameBridge.UpdatePlanet(defenderCelestial, UpdateTypes.Resources);
+								if (availableSpace > 0) {
+									DoLog(LogLevel.Information, $"Building {availableSpace} AntiBallisticMissiles on {defenderCelestial.ToString()}");
+									await _ogameService.BuildDefences(defenderCelestial, Buildables.AntiBallisticMissiles, availableSpace);
+								}
+								else {
+									DoLog(LogLevel.Information, $"Unable to build AntiBallisticMissiles on {defenderCelestial.ToString()}: there is no space");
+								}
 							}
-						} catch (Exception e) {
-							DoLog(LogLevel.Error, $"Could not spy attacker: an exception has occurred: {e.Message}");
-							DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+							else {
+								DoLog(LogLevel.Information, $"Unable to build AntiBallisticMissiles on {defenderCelestial.ToString()}: a production is ongoing");
+							}
+						}
+						else {
+							DoLog(LogLevel.Information, $"No MissileSilo level >= 2 on {defenderCelestial.ToString()}");
 						}
 					}
+					return;
 				}
+				if (attack.Ships != null && _tbotInstance.UserData.researches.EspionageTechnology >= 8) {
+					if (SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "IgnoreProbes") && (bool) _tbotInstance.InstanceSettings.Defender.IgnoreProbes && attack.IsOnlyProbes()) {
+						if (attack.MissionType == Missions.Spy)
+							DoLog(LogLevel.Information, "Attacker sent only Probes! Espionage action skipped.");
+						else
+							DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: only Espionage Probes.");
 
-				if ((bool) _tbotInstance.InstanceSettings.Defender.MessageAttacker.Active) {
+						return;
+					}
+					if (
+						(bool) _tbotInstance.InstanceSettings.Defender.IgnoreWeakAttack &&
+						attack.Ships.GetFleetPoints() < (attackedCelestial.Ships.GetFleetPoints() / (int) _tbotInstance.InstanceSettings.Defender.WeakAttackRatio)
+					) {
+						DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: weak attack.");
+						return;
+					}
+				} else {
+					DoLog(LogLevel.Information, "Unable to detect fleet composition.");
+				}
+				var ignoreAttackIfIHaveActive = (bool) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.Active;
+				var totalResources = attackedCelestial.Resources?.TotalResources ?? 0;
+				var fleetPoints = attackedCelestial.Ships?.GetFleetPoints() ?? 0;
+
+				if (
+					ignoreAttackIfIHaveActive &&
+					totalResources < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinResourcesToSave &&
+					(fleetPoints * 1000) < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinFleetToSave
+				) {
+					DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()} skipped: it's not worth it.");
+					return;
+				}
+			} catch {
+				DoLog(LogLevel.Warning, "An error has occurred while checking attacker fleet composition");
+			}
+
+			if ((bool) _tbotInstance.InstanceSettings.Defender.TelegramMessenger.Active) {
+				await _tbotInstance.SendTelegramMessage($"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attack.Destination.ToString()} arriving at {attack.ArrivalTime.ToString()}");
+				if (attack.Ships != null) { 
+					await Task.Delay(1000, _ct);
+					await _tbotInstance.SendTelegramMessage($"The attack is composed by: {attack.Ships.ToString()}");
+				}
+			}
+			DoLog(LogLevel.Warning, $"Player {attack.AttackerName} ({attack.AttackerID}) is attacking your planet {attackedCelestial.ToString()} arriving at {attack.ArrivalTime.ToString()}");
+			if (attack.Ships != null) {
+				await Task.Delay(1000, _ct);
+				DoLog(LogLevel.Warning, $"The attack is composed by: {attack.Ships.ToString()}");
+			}
+
+			if ((bool) _tbotInstance.InstanceSettings.Defender.SpyAttacker.Active) {
+				_tbotInstance.UserData.slots = await _tbotOgameBridge.UpdateSlots();
+				if (attackedCelestial.Ships.EspionageProbe == 0) {
+					DoLog(LogLevel.Warning, "Could not spy attacker: no probes available.");
+				} else {
 					try {
-						if (attack.AttackerID != 0) {
-							Random random = new();
-							string[] messages = _tbotInstance.InstanceSettings.Defender.MessageAttacker.Messages;
-							string message = System.Linq.Enumerable.Shuffle(messages).ToList().First();
-							DoLog(LogLevel.Information, $"Sending message \"{message}\" to attacker {attack.AttackerName}");
-							try {
-								await _ogameService.SendMessage(attack.AttackerID, message);
-								DoLog(LogLevel.Information, "Message succesfully sent.");
-							} catch {
-								DoLog(LogLevel.Warning, "Unable send message.");
-							}
+						Coordinate destination = attack.Origin;
+						Ships ships = new() { EspionageProbe = (int) _tbotInstance.InstanceSettings.Defender.SpyAttacker.Probes };
+						int fleetId = await _fleetScheduler.SendFleet(attackedCelestial, ships, destination, Missions.Spy, Speeds.HundredPercent, new Resources(), _tbotInstance.UserData.userInfo.Class);
+						var fleet = _tbotInstance.UserData.fleets.SingleOrDefault(f => f.ID == fleetId);
+						if (fleet == null) {
+							DoLog(LogLevel.Warning, $"SpyAttacker: SendFleet returned id={fleetId}, but fleet was not found in current fleet list (send may have failed or list not updated yet).");
 						} else {
+							DoLog(LogLevel.Information, $"Spying attacker from {attackedCelestial.ToString()} to {destination.ToString()} with {_tbotInstance.InstanceSettings.Defender.SpyAttacker.Probes} probes. Arrival at {fleet.ArrivalTime.ToString()}");
+						}
+					} catch (Exception e) {
+						DoLog(LogLevel.Error, $"Could not spy attacker: an exception has occurred: {e.Message}");
+						DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+					}
+				}
+			}
+
+			if ((bool) _tbotInstance.InstanceSettings.Defender.MessageAttacker.Active) {
+				try {
+					if (attack.AttackerID != 0) {
+						Random random = new();
+						string[] messages = _tbotInstance.InstanceSettings.Defender.MessageAttacker.Messages;
+						string message = System.Linq.Enumerable.Shuffle(messages).ToList().First();
+						DoLog(LogLevel.Information, $"Sending message \"{message}\" to attacker {attack.AttackerName}");
+						try {
+							await _ogameService.SendMessage(attack.AttackerID, message);
+							DoLog(LogLevel.Information, "Message succesfully sent.");
+						} catch {
 							DoLog(LogLevel.Warning, "Unable send message.");
 						}
-
-					} catch (Exception e) {
-						DoLog(LogLevel.Error, $"Could not message attacker: an exception has occurred: {e.Message}");
-						DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+					} else {
+						DoLog(LogLevel.Warning, "Unable send message.");
 					}
-				}
 
-				if ((bool) _tbotInstance.InstanceSettings.Defender.Autofleet.Active) {
-					try {
-						ScheduleFleetSave(attackedCelestial, attack);
-					} catch (Exception e) {
-						DoLog(LogLevel.Error, $"Could not schedule fleetsave: an exception has occurred: {e.Message}");
-						DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
-					}
+				} catch (Exception e) {
+					DoLog(LogLevel.Error, $"Could not message attacker: an exception has occurred: {e.Message}");
+					DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
 				}
+			}
+
+			if ((bool) _tbotInstance.InstanceSettings.Defender.Autofleet.Active) {
+				try {
+					ScheduleFleetSave(attackedCelestial, attack);
+				} catch (Exception e) {
+					DoLog(LogLevel.Error, $"Could not schedule fleetsave: an exception has occurred: {e.Message}");
+					DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+				}
+			}
 			} catch (Exception e) {
 				DoLog(LogLevel.Error, $"HandleAttack error for attack {attack?.ID}: {e.Message}");
 				DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
@@ -418,8 +436,27 @@ namespace Tbot.Workers {
 				double remainingSeconds = Math.Max(0, (scheduled.ApproxArrivalUtc - DateTime.UtcNow).TotalSeconds);
 				long minFlightTime = (long) (remainingSeconds + (remainingSeconds / 100 * 30) + (RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds) / 1000));
 
+				_tbotInstance.UserData.fleets = await _fleetScheduler.UpdateFleets();
+				var beforeIds = _tbotInstance.UserData.fleets.Select(f => f.ID).ToHashSet();
+
 				DoLog(LogLevel.Warning, $"Sending fleet away from {celestial.ToString()} ahead of incoming attack.");
 				await _fleetScheduler.AutoFleetSave(celestial, false, minFlightTime);
+
+				_tbotInstance.UserData.fleets = await _fleetScheduler.UpdateFleets();
+				var newFleetIds = _tbotInstance.UserData.fleets
+					.Where(f => !beforeIds.Contains(f.ID))
+					.Where(f => f.Origin != null && celestial.HasCoords(f.Origin))
+					.Select(f => f.ID)
+					.ToList();
+
+				if (newFleetIds.Count > 0) {
+					_awaySavedFleets.AddOrUpdate(celestial.ID,
+						_ => newFleetIds,
+						(_, existing) => existing.Union(newFleetIds).ToList());
+					DoLog(LogLevel.Information, $"Tracking {newFleetIds.Count} saved fleet(s) from {celestial.ToString()} for later recall.");
+				} else {
+					DoLog(LogLevel.Warning, $"Fleetsave triggered for {celestial.ToString()} but no new outbound fleet was detected; recall tracking skipped.");
+				}
 			} catch (TaskCanceledException) {
 				DoLog(LogLevel.Information, $"Scheduled fleetsave for {celestial.ToString()} was cancelled (superseded by an earlier-arriving attack, or the bot is shutting down).");
 			} catch (Exception e) {
@@ -429,6 +466,109 @@ namespace Tbot.Workers {
 				// Only remove the entry if it still points at this exact scheduled instance -
 				// avoids clobbering a newer schedule that superseded this one.
 				_scheduledFleetSaves.TryRemove(new KeyValuePair<int, ScheduledFleetSave>(celestial.ID, scheduled));
+				scheduled.Cts.Dispose();
+			}
+		}
+
+		/// <summary>
+		/// Goes through every celestial that currently has fleets away on a defensive save and
+		/// checks whether the attacker is still present in the current attack list. If not,
+		/// schedules a recall; if a new attack just showed up on a celestial with a pending
+		/// recall, cancels that recall so the fleet stays away.
+		/// </summary>
+		private async Task CheckForFleetsToRecall(List<AttackerFleet> currentAttacks) {
+			if (_awaySavedFleets.IsEmpty)
+				return;
+
+			foreach (var celestialId in _awaySavedFleets.Keys.ToArray()) {
+				Celestial celestial = _tbotInstance.UserData.celestials.Unique().FirstOrDefault(c => c.ID == celestialId);
+				if (celestial == null)
+					continue;
+
+				bool stillTargeted = currentAttacks != null && currentAttacks.Any(a => celestial.HasCoords(a.Destination));
+				if (stillTargeted) {
+					if (_scheduledRecalls.TryRemove(celestialId, out var pending)) {
+						pending.Cts.Cancel();
+						pending.Cts.Dispose();
+						DoLog(LogLevel.Information, $"Cancelled pending recall for {celestial.ToString()}: attacker is back.");
+					}
+					continue;
+				}
+
+				ScheduleFleetRecall(celestial);
+			}
+			await Task.CompletedTask;
+		}
+
+		/// <summary>
+		/// Schedules a recall of the fleet(s) previously saved from this celestial, after a short
+		/// random delay, so a fresh attack has a moment to cancel the recall before it fires.
+		/// </summary>
+		private void ScheduleFleetRecall(Celestial celestial) {
+			if (_scheduledRecalls.ContainsKey(celestial.ID))
+				return; // a recall is already pending for this celestial
+
+			int delaySeconds = new Random().Next(30, 91);
+			var scheduled = new ScheduledRecall {
+				ScheduledAtUtc = DateTime.UtcNow.AddSeconds(delaySeconds),
+				Cts = CancellationTokenSource.CreateLinkedTokenSource(_ct)
+			};
+
+			if (!_scheduledRecalls.TryAdd(celestial.ID, scheduled)) {
+				scheduled.Cts.Dispose();
+				return; // another thread beat us to scheduling it
+			}
+
+			DoLog(LogLevel.Information, $"Attacker gone from {celestial.ToString()}; recalling saved fleet(s) in ~{delaySeconds}s.");
+			_ = RunScheduledRecall(celestial, scheduled);
+		}
+
+		private async Task RunScheduledRecall(Celestial celestial, ScheduledRecall scheduled) {
+			try {
+				var delay = scheduled.ScheduledAtUtc - DateTime.UtcNow;
+				if (delay > TimeSpan.Zero)
+					await Task.Delay(delay, scheduled.Cts.Token);
+
+				if (scheduled.Cts.Token.IsCancellationRequested)
+					return;
+
+				// Re-check right before recalling: make sure nothing new has targeted this
+				// celestial while we were waiting out the delay.
+				var freshAttacks = await _ogameService.GetAttacks();
+				if (freshAttacks != null && freshAttacks.Any(a => celestial.HasCoords(a.Destination))) {
+					DoLog(LogLevel.Information, $"Recall for {celestial.ToString()} aborted: a new attack showed up before the recall fired.");
+					return;
+				}
+
+				if (!_awaySavedFleets.TryRemove(celestial.ID, out var fleetIds) || fleetIds == null || fleetIds.Count == 0)
+					return;
+
+				_tbotInstance.UserData.fleets = await _fleetScheduler.UpdateFleets();
+				foreach (var fleetId in fleetIds) {
+					var fleet = _tbotInstance.UserData.fleets.SingleOrDefault(f => f.ID == fleetId);
+					if (fleet == null) {
+						DoLog(LogLevel.Information, $"Saved fleet {fleetId} from {celestial.ToString()} is no longer active (already returned or landed); nothing to recall.");
+						continue;
+					}
+					if (fleet.ReturnFlight) {
+						DoLog(LogLevel.Information, $"Saved fleet {fleetId} from {celestial.ToString()} is already on its way back; nothing to recall.");
+						continue;
+					}
+					try {
+						DoLog(LogLevel.Warning, $"Recalling saved fleet {fleetId} back to {celestial.ToString()}.");
+						await _fleetScheduler.CancelFleet(fleet);
+					} catch (Exception e) {
+						DoLog(LogLevel.Error, $"Could not recall fleet {fleetId}: an exception has occurred: {e.Message}");
+						DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+					}
+				}
+			} catch (TaskCanceledException) {
+				DoLog(LogLevel.Information, $"Scheduled recall for {celestial.ToString()} was cancelled.");
+			} catch (Exception e) {
+				DoLog(LogLevel.Error, $"Could not process scheduled recall: an exception has occurred: {e.Message}");
+				DoLog(LogLevel.Warning, $"Stacktrace: {e.StackTrace}");
+			} finally {
+				_scheduledRecalls.TryRemove(new KeyValuePair<int, ScheduledRecall>(celestial.ID, scheduled));
 				scheduled.Cts.Dispose();
 			}
 		}
