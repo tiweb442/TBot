@@ -457,6 +457,10 @@ namespace Tbot.Workers {
 
 				foreach (Planet planet in _tbotInstance.UserData.celestials.Where(c => c is Planet).ToList()) {
 					ct.ThrowIfCancellationRequested();
+					if (!IsWorkerEnabledBySettings() || !(bool) _tbotInstance.InstanceSettings.AutoColonize.Abandon.Active) {
+						DoLog(LogLevel.Information, "AutoColonize/Abandon got disabled mid-check, aborting abandon-check.");
+						break;
+					}
 					Planet tempCelestial = await _tbotOgameBridge.UpdatePlanet(planet, UpdateTypes.Fast) as Planet;
 					if (tempCelestial == null) {
 						continue;
