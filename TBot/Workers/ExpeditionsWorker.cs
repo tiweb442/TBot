@@ -217,7 +217,7 @@ namespace Tbot.Workers {
 								}
 
 								if ((bool) _tbotInstance.InstanceSettings.Expeditions.RandomizeOrder) {
-									origins = origins.Shuffle().ToList();
+									origins = System.Linq.Enumerable.Shuffle(origins).ToList();
 								}
 								LFBonuses lfBonuses = origins.First().LFBonuses;
 
