@@ -263,7 +263,9 @@ namespace Tbot.Workers {
 					}
 					return;
 				}
-				if (attack.Ships != null && _tbotInstance.UserData.researches.EspionageTechnology >= 8) {
+				bool fleetCompositionKnown = attack.Ships != null && _tbotInstance.UserData.researches.EspionageTechnology >= 8;
+
+				if (fleetCompositionKnown) {
 					if (SettingsService.IsSettingSet(_tbotInstance.InstanceSettings.Defender, "IgnoreProbes") && (bool) _tbotInstance.InstanceSettings.Defender.IgnoreProbes && attack.IsOnlyProbes()) {
 						if (attack.MissionType == Missions.Spy)
 							DoLog(LogLevel.Information, "Attacker sent only Probes! Espionage action skipped.");
@@ -280,13 +282,15 @@ namespace Tbot.Workers {
 						return;
 					}
 				} else {
-					DoLog(LogLevel.Information, "Unable to detect fleet composition.");
+					DoLog(LogLevel.Information, $"Unable to detect fleet composition for attack {attack.ID.ToString()} (Espionage Technology < 8): treating it as a threat and skipping the probe-only/weak-attack heuristics.");
 				}
 				var ignoreAttackIfIHaveActive = (bool) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.Active;
 				var totalResources = attackedCelestial.Resources?.TotalResources ?? 0;
 				var fleetPoints = attackedCelestial.Ships?.GetFleetPoints() ?? 0;
 
-				if (
+				if (!fleetCompositionKnown && ignoreAttackIfIHaveActive) {
+					DoLog(LogLevel.Information, $"Attack {attack.ID.ToString()}: fleet composition unknown, ignoring the 'IgnoreAttackIfIHave' setting for this attack and proceeding to fleetsave to be safe.");
+				} else if (
 					ignoreAttackIfIHaveActive &&
 					totalResources < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinResourcesToSave &&
 					(fleetPoints * 1000) < (long) _tbotInstance.InstanceSettings.Defender.IgnoreAttackIfIHave.MinFleetToSave
