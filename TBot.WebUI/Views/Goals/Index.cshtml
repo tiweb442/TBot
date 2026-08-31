@@ -1,0 +1,189 @@
+@model TBot.WebUI.Models.GoalsModel
+<link rel="stylesheet" href="~/css/goals.css" asp-append-version="true" />
+<script src="~/js/goals.js" asp-append-version="true"></script>
+
+<div class="goals-page">
+	<div class="row mb-3">
+		<div class="col-md-6">
+			<label for="instanceSelect" class="form-label">Instance</label>
+			<select id="instanceSelect" class="form-select">
+				@foreach (var instance in Model.Instances)
+				{
+					if (instance.SettingsFile == Model.SelectedSettingsFile)
+					{
+						<option value="@instance.SettingsFile" selected="selected">
+							@instance.Alias (@instance.SettingsFile)
+						</option>
+					}
+					else
+					{
+						<option value="@instance.SettingsFile">
+							@instance.Alias (@instance.SettingsFile)
+						</option>
+					}
+				}
+			</select>
+		</div>
+	</div>
+
+	<div class="card mb-3 active-goal-card">
+		<div class="card-header d-flex justify-content-between align-items-center">
+			<span>Active Goal</span>
+			@if (!string.IsNullOrWhiteSpace(Model.ActiveGoal))
+			{
+				<button class="btn btn-sm btn-warning" onclick="onRestoreClick()">Complete &amp; Restore</button>
+			}
+		</div>
+		<div class="card-body">
+			@if (string.IsNullOrWhiteSpace(Model.ActiveGoal))
+			{
+				<p class="text-muted mb-0">No goal active.</p>
+			}
+			else
+			{
+				<p class="mb-1"><strong>@Model.ActiveGoalLabel</strong> <span class="text-muted">(@Model.ActiveGoal)</span></p>
+				@if (!string.IsNullOrWhiteSpace(Model.ActivatedAt))
+				{
+					<p class="text-muted mb-0">Started: @Model.ActivatedAt</p>
+				}
+			}
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-lg-6 mb-3">
+			<div class="card h-100">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<span>Presets</span>
+					<div class="d-flex align-items-center gap-2">
+						<small id="presetStatusHint" class="text-muted preset-status-hint"></small>
+						<button id="refreshPresetStatus" type="button" class="btn btn-sm btn-outline-secondary">Refresh</button>
+					</div>
+				</div>
+				<div class="card-body p-0">
+					@if (!Model.Presets.Any())
+					{
+						<p class="p-3 text-muted mb-0">No presets defined in Goals.Presets.</p>
+					}
+					else
+					{
+						<ul class="list-group list-group-flush preset-list" id="activePresetList">
+							@foreach (var preset in Model.Presets)
+							{
+								<li class="list-group-item goal-preset" data-preset-id="@preset.Id" data-preset-order="@preset.Order">
+									<div class="preset-row d-flex justify-content-between align-items-start">
+										<div class="preset-main flex-grow-1 min-width-0">
+											<div class="preset-header d-flex align-items-center flex-wrap gap-1">
+												<span class="badge bg-light text-dark preset-order-badge">@preset.Order</span>
+												<strong class="preset-label">@preset.Label</strong>
+												<span class="badge preset-status-badge d-none"></span>
+											</div>
+											<div class="preset-details">
+												@if (!string.IsNullOrWhiteSpace(preset.Description))
+												{
+													<p class="text-muted mb-1 small preset-description">@preset.Description</p>
+												}
+												<ul class="apply-list small mb-0">
+													@foreach (var patch in preset.Apply)
+													{
+														<li><code>@patch.Key</code> = @patch.Value</li>
+													}
+												</ul>
+											</div>
+										</div>
+										<button class="btn btn-sm btn-primary ms-2 preset-activate-btn flex-shrink-0"
+												onclick="onActivateClick('@preset.Id')"
+												@( !string.IsNullOrWhiteSpace(Model.ActiveGoal) ? "disabled" : null )>
+											Activate
+										</button>
+									</div>
+								</li>
+							}
+						</ul>
+						<div class="completed-presets-section d-none" id="completedPresetsSection">
+							<button type="button"
+									class="completed-presets-toggle btn btn-link btn-sm w-100 text-start"
+									data-bs-toggle="collapse"
+									data-bs-target="#completedPresetListCollapse"
+									aria-expanded="false"
+									aria-controls="completedPresetListCollapse">
+								<span class="completed-presets-chevron" aria-hidden="true">&#9654;</span>
+								Completed (<span id="completedPresetsCount">0</span>)
+							</button>
+							<div class="collapse" id="completedPresetListCollapse">
+								<ul class="list-group list-group-flush preset-list completed-preset-list" id="completedPresetList"></ul>
+							</div>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		<div class="col-lg-6 mb-3">
+			<div class="card mb-3">
+				<div class="card-header">Baseline Caps</div>
+				<div class="card-body">
+					@if (!Model.Baselines.Any())
+					{
+						<p class="text-muted mb-0">No baselines saved (activate a goal first).</p>
+					}
+					else
+					{
+						<table class="table table-sm mb-0">
+							<thead>
+								<tr><th>Setting</th><th>Saved Value</th></tr>
+							</thead>
+							<tbody>
+								@foreach (var baseline in Model.Baselines)
+								{
+									<tr>
+										<td><code>@baseline.Key</code></td>
+										<td>@baseline.Value</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				</div>
+			</div>
+
+			<div class="card">
+				<div class="card-header">Current Values</div>
+				<div class="card-body">
+					@if (!Model.CurrentValues.Any())
+					{
+						<p class="text-muted mb-0">No tracked settings.</p>
+					}
+					else
+					{
+						<table class="table table-sm mb-0">
+							<thead>
+								<tr><th>Setting</th><th>Current</th></tr>
+							</thead>
+							<tbody id="currentValuesBody">
+								@foreach (var value in Model.CurrentValues)
+								{
+									<tr>
+										<td><code>@value.Key</code></td>
+										<td>@value.Value</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+	Initialize(
+		"@Url.Action("Index", "Goals")",
+		"@Url.Action("Activate", "Goals")",
+		"@Url.Action("Restore", "Goals")",
+		"@Url.Action("GetPresetStatus", "Goals")",
+		"@Model.SelectedSettingsFile",
+		"@Model.ActiveGoal"
+	);
+</script>

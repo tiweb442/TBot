@@ -20,6 +20,7 @@ namespace Tbot.Services {
 		ValueTask DisposeAsync();
 
 		dynamic InstanceSettings { get; }
+		string InstanceSettingsPath { get; }
 		string InstanceAlias { get; }
 		UserData UserData { get; set; }
 		TelegramUserData TelegramUserData { get; }

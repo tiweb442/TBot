@@ -342,3 +342,7 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Local secrets and instance overrides (credentials, per-account settings)
+.tbot-secrets/
+*.local.json

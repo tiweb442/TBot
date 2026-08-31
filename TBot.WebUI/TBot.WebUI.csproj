@@ -30,6 +30,8 @@
 	  <Content Remove="wwwroot\js\JSONedtr.js" />
 	  <Content Remove="wwwroot\js\logging.js" />
 	  <Content Remove="wwwroot\js\settings.js" />
+	  <Content Remove="wwwroot\js\goals.js" />
+	  <Content Remove="wwwroot\css\goals.css" />
 	  <Content Remove="wwwroot\manifest.json" />
 	  <Content Remove="wwwroot\serviceWorker.js" />
 	</ItemGroup>
@@ -44,6 +46,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\TBot.Common\TBot.Common.csproj" />
+	  <ProjectReference Include="..\TBot.Ogame.Infrastructure\TBot.Ogame.Infrastructure.csproj" />
 	</ItemGroup>
 
 </Project>

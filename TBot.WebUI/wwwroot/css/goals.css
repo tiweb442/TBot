@@ -1,0 +1,97 @@
+.goals-page .card-header {
+	font-weight: 600;
+}
+
+.goals-page .preset-list .list-group-item {
+	border-left: none;
+	border-right: none;
+}
+
+.goals-page .apply-list {
+	padding-left: 1.2rem;
+	list-style-type: disc;
+}
+
+.goals-page .apply-list code {
+	font-size: 0.85em;
+}
+
+.goals-page .active-goal-card .card-body strong {
+	font-size: 1.1rem;
+}
+
+.goals-page .goal-preset.completed {
+	padding-top: 0.35rem;
+	padding-bottom: 0.35rem;
+}
+
+.goals-page .goal-preset.completed .preset-row {
+	align-items: center !important;
+}
+
+.goals-page .goal-preset.completed .preset-details,
+.goals-page .goal-preset.completed .preset-activate-btn {
+	display: none !important;
+}
+
+.goals-page .goal-preset.completed .preset-label {
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.goals-page .goal-preset.completed .preset-order-badge {
+	font-size: 0.65rem;
+	padding: 0.15em 0.45em;
+}
+
+.goals-page .goal-preset.completed .preset-status-badge {
+	font-size: 0.65rem;
+}
+
+.goals-page .completed-presets-section {
+	border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.goals-page .completed-presets-toggle {
+	padding: 0.45rem 0.75rem;
+	text-decoration: none;
+	color: var(--bs-secondary);
+	font-size: 0.85rem;
+}
+
+.goals-page .completed-presets-toggle:hover,
+.goals-page .completed-presets-toggle:focus {
+	text-decoration: none;
+	color: var(--bs-body-color);
+}
+
+.goals-page .completed-presets-chevron {
+	display: inline-block;
+	width: 0.85rem;
+	font-size: 0.65rem;
+	transition: transform 0.15s ease;
+}
+
+.goals-page .completed-presets-toggle[aria-expanded="true"] .completed-presets-chevron {
+	transform: rotate(90deg);
+}
+
+.goals-page .completed-preset-list .goal-preset {
+	border-left: none;
+	border-right: none;
+}
+
+.goals-page .preset-status-badge {
+	font-size: 0.7rem;
+	vertical-align: middle;
+}
+
+.goals-page .preset-status-hint {
+	font-size: 0.8rem;
+}
+
+@media (max-width: 992px) {
+	.goals-page .preset-list button {
+		white-space: nowrap;
+	}
+}

@@ -118,6 +118,28 @@ Here follows a short explanation of each of them, read the [Wiki](https://github
 ### WebUI
 Since 0.3.0 TBot includes a webUI where you can check and change the settings, read the logs in a filterable table and play manually with your account(s), all in the same place, even remotely.
 
+After `dotnet publish`, run `scripts/post-publish-sync.ps1` to restore `settings.json` and `*.local.json` from `.tbot-secrets` into `publish/win64`.
+
+**Goals** (http://localhost:9090/Goals): activate temporary presets defined in `Goals.Presets` inside each instance's settings file (default: `instance_settings.json`). The page lists instances from `settings.json` â†’ `Instances[]`, snapshots current values, applies preset patches, and restores baselines when you click Complete & Restore.
+
+Built-in presets (keys in `Goals.Presets`, ordered by unlock tree):
+
+| Order | Preset | Purpose |
+|-------|--------|---------|
+| 1 | `UnlockLightFighter` | Light Fighter (Combustion 1) |
+| 2 | `UnlockSmallCargo` | Early Small Cargo (Combustion 2) |
+| 3 | `UnlockEspionageProbes` | Espionage probes (Espionage 2, Combustion 3) |
+| 4 | `UnlockImpulseDrive` | Impulse Drive 5 |
+| 5 | `UnlockRecycler` | Recycler (Combustion 6, Shielding 2) |
+| 6 | `UnlockLargeCargo` | Large Cargo (Combustion 6) |
+| 7 | `UnlockComputerTech6` | Fleet slots via Computer Tech 6 |
+| 8 | `UnlockComputerTech10` | Fleet slots via Computer Tech 10 |
+| 9 | `UnlockAstrophysics1` | First colony slot (Espionage 4, Impulse 3) |
+| 10 | `UnlockColonyShip` | Colony ship + Astro 1 for colonize |
+| 11 | `UnlockAstrophysics3` | Third colony slot |
+| 12 | `UnlockAstrophysics6` | Sixth colony slot |
+| 13 | `UnlockPathfinder` | Pathfinder (Hyperspace Drive 2 chain) |
+
 
 ### Telegram
 You can control and get info for TBot through a Telegram Bot. In order to enable it, you need to follow theese steps:

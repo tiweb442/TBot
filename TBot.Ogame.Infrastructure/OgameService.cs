@@ -61,17 +61,25 @@ namespace TBot.Ogame.Infrastructure {
 
 			_username = credentials.Username;
 
-			_ogamedProcess = ExecuteOgamedExecutable(credentials, device, host, port, captchaKey, proxySettings);
+			_client = CreateHttpClient(host, port, credentials);
 
-			_client = new HttpClient() {
+			if (IsPortAvailable(host, port))
+				_ogamedProcess = ExecuteOgamedExecutable(credentials, device, host, port, captchaKey, proxySettings);
+			else
+				_logger.WriteLog(LogLevel.Information, LogSender.OGameD, $"Port {port} already in use; connecting to existing ogamed on {host}:{port}");
+		}
+
+		private HttpClient CreateHttpClient(string host, int port, Credentials credentials) {
+			var client = new HttpClient() {
 				BaseAddress = new Uri($"http://{host}:{port}/"),
 				Timeout = TimeSpan.FromSeconds(60)
 			};
 			if (credentials.BasicAuthUsername != "" && credentials.BasicAuthPassword != "") {
-				_client.DefaultRequestHeaders.Authorization =
+				client.DefaultRequestHeaders.Authorization =
 					new AuthenticationHeaderValue("Basic",
 					Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{credentials.BasicAuthUsername}:{credentials.BasicAuthPassword}")));
 			}
+			return client;
 		}
 
 		public bool ValidatePrerequisites() {
@@ -220,7 +228,11 @@ namespace TBot.Ogame.Infrastructure {
 			}
 		}
 		public void RerunOgamed() {
-			ExecuteOgamedExecutable(_credentials, _device, _host, _port, _captchaKey, _proxySettings);
+			if (!IsPortAvailable(_host, _port)) {
+				_logger.WriteLog(LogLevel.Information, LogSender.OGameD, $"Port {_port} already in use; skipping ogamed restart");
+				return;
+			}
+			_ogamedProcess = ExecuteOgamedExecutable(_credentials, _device, _host, _port, _captchaKey, _proxySettings);
 		}
 
 		public void KillOgamedExecutable(CancellationToken ct = default) {

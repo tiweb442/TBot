@@ -57,7 +57,7 @@ namespace Tbot.Services {
 		public event EventHandler OnError;
 
 		public dynamic InstanceSettings { get; private set; }
-		private string InstanceSettingsPath { get; set; }
+		public string InstanceSettingsPath { get; private set; }
 		public string InstanceAlias { get; private set; }
 		public UserData UserData {
 			set {
@@ -159,9 +159,8 @@ namespace Tbot.Services {
 		private async Task InitializeOgame() {
 			string host = (string) InstanceSettings.General.Host ?? "localhost";
 			string port = (string) InstanceSettings.General.Port ?? "8080";
-			if (!_ogameService.IsPortAvailable(host, int.Parse(port))) {
-				throw new Exception("Port " + port + " is not available");
-			}
+			if (!_ogameService.IsPortAvailable(host, int.Parse(port)))
+				log(LogLevel.Information, LogSender.Tbot, $"Port {port} already in use; will connect to existing ogamed");
 
 			string captchaKey = (string) InstanceSettings.General.CaptchaAPIKey ?? "";
 			ProxySettings proxy = new();
@@ -389,6 +388,7 @@ namespace Tbot.Services {
 				Feature.BrainLifeformAutoResearch => RandomizeHelper.CalcRandomInterval(IntervalType.AFewSeconds),
 				Feature.BrainOfferOfTheDay => RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds),
 				Feature.BrainAutoResearch => RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds),
+				Feature.BrainGoals => RandomizeHelper.CalcRandomInterval(IntervalType.AMinuteOrTwo),
 				Feature.AutoFarm => RandomizeHelper.CalcRandomInterval(IntervalType.AMinuteOrTwo),
 				Feature.Expeditions => RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds),
 				Feature.Harvest => RandomizeHelper.CalcRandomInterval(IntervalType.SomeSeconds),

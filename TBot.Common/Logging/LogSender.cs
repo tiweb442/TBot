@@ -21,6 +21,7 @@ namespace TBot.Common.Logging {
 		LifeformsAutoMine,
 		LifeformsAutoResearch,
 		AutoFleepJumpGate,
+		Goals,
 		//End Brain Features
 		Expeditions,
 		Harvest,
