@@ -57,10 +57,13 @@ namespace TBot.Ogame.Infrastructure {
 				if (condition.Value is not JObject rule)
 					continue;
 
-				result[condition.Name] = new GoalProgressEntry {
-					Current = GetActualValue(condition.Name, researches, celestials, fleets),
-					Required = GetRequiredValue(rule)
-				};
+				var current = GetActualValue(condition.Name, researches, celestials, fleets);
+				var required = GetRequiredValue(rule);
+				if (current < required)
+					result[GetProgressKey(condition.Name)] = new GoalProgressEntry {
+						Current = current,
+						Required = required
+					};
 			}
 
 			return result;
@@ -72,19 +75,32 @@ namespace TBot.Ogame.Infrastructure {
 				&& !string.IsNullOrWhiteSpace(unlockTarget["Name"]?.Value<string>());
 		}
 
+		private static bool HasCompleteWhen(JObject? completeWhen) {
+			return completeWhen != null && completeWhen.Properties().Any();
+		}
+
 		private static bool EvaluateUnlockTarget(JObject unlockTarget, JObject preset, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
+			var completeWhen = preset["CompleteWhen"] as JObject;
+			if (HasCompleteWhen(completeWhen))
+				return EvaluateCompleteWhen(completeWhen, researches, celestials, fleets);
+
 			var type = unlockTarget["Type"]?.Value<string>() ?? "";
 			var name = unlockTarget["Name"]?.Value<string>() ?? "";
 
 			if (type.Equals("Ship", StringComparison.OrdinalIgnoreCase)) {
 				if (!Enum.TryParse<Buildables>(name, out var ship))
 					return false;
-				return EvaluateShipUnlock(ship, preset, researches, celestials, fleets);
+
+				if (GetTotalShipCount(ship, celestials, fleets) >= 1)
+					return true;
+
+				return BuildableRequirements.AreShipRequirementsMet(ship, researches, celestials);
 			}
 
 			if (type.Equals("Research", StringComparison.OrdinalIgnoreCase)) {
 				if (!Enum.TryParse<Buildables>(name, out var research))
 					return false;
+
 				var targetLevel = ResolveTargetLevel(unlockTarget, preset, name);
 				return researches.GetLevel(research) >= targetLevel;
 			}
@@ -93,6 +109,10 @@ namespace TBot.Ogame.Infrastructure {
 		}
 
 		private static Dictionary<string, GoalProgressEntry> GetUnlockProgress(JObject unlockTarget, JObject preset, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
+			var completeWhen = preset["CompleteWhen"] as JObject;
+			if (HasCompleteWhen(completeWhen))
+				return GetProgress(completeWhen, researches, celestials, fleets);
+
 			var result = new Dictionary<string, GoalProgressEntry>();
 			var type = unlockTarget["Type"]?.Value<string>() ?? "";
 			var name = unlockTarget["Name"]?.Value<string>() ?? "";
@@ -101,78 +121,58 @@ namespace TBot.Ogame.Infrastructure {
 				if (!Enum.TryParse<Buildables>(name, out var ship))
 					return result;
 
-				var shipCount = GetTotalShipCount(ship, celestials, fleets);
-				if (shipCount >= 1)
+				if (GetTotalShipCount(ship, celestials, fleets) >= 1)
 					return result;
 
-				var reqs = BuildableRequirements.GetShipRequirements(ship);
-				if (reqs == null)
-					return result;
-
-				foreach (var (research, required) in reqs.Research) {
-					var current = researches.GetLevel(research);
-					if (current < required)
-						result[BuildableRequirements.GetShortName(research)] = new GoalProgressEntry {
-							Current = current,
-							Required = required
-						};
-				}
-
-				var maxShipyard = GetMaxShipyard(celestials);
-				if (maxShipyard < reqs.ShipyardLevel)
-					result[BuildableRequirements.GetShortName(Buildables.Shipyard)] = new GoalProgressEntry {
-						Current = maxShipyard,
-						Required = reqs.ShipyardLevel
-					};
-
-				if (result.Count == 0)
-					result[BuildableRequirements.GetShortName(ship)] = new GoalProgressEntry {
-						Current = shipCount,
-						Required = 1
-					};
-
-				return result;
+				return GetShipRequirementProgress(ship, researches, celestials);
 			}
 
 			if (type.Equals("Research", StringComparison.OrdinalIgnoreCase)) {
 				if (!Enum.TryParse<Buildables>(name, out var research))
 					return result;
 
-				var targetLevel = ResolveTargetLevel(unlockTarget, preset, name);
-				var current = researches.GetLevel(research);
-				if (current < targetLevel)
-					result[BuildableRequirements.GetShortName(research)] = new GoalProgressEntry {
-						Current = current,
-						Required = targetLevel
-					};
+				var requiredLevels = BuildableRequirements.GetUnlockResearchRequirements(unlockTarget, preset);
+				foreach (var (requiredResearch, requiredLevel) in requiredLevels.OrderBy(kvp => kvp.Key.ToString())) {
+					var current = researches.GetLevel(requiredResearch);
+					if (current < requiredLevel)
+						result[BuildableRequirements.GetShortName(requiredResearch)] = new GoalProgressEntry {
+							Current = current,
+							Required = requiredLevel
+						};
+				}
 			}
 
 			return result;
 		}
 
-		private static bool EvaluateShipUnlock(Buildables ship, JObject preset, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
-			if (GetTotalShipCount(ship, celestials, fleets) >= 1)
-				return true;
+		private static Dictionary<string, GoalProgressEntry> GetShipRequirementProgress(Buildables ship, Researches researches, IEnumerable<Celestial> celestials) {
+			var result = new Dictionary<string, GoalProgressEntry>();
+			var reqs = BuildableRequirements.GetShipRequirements(ship);
+			if (reqs == null)
+				return result;
 
-			var completeWhen = preset["CompleteWhen"] as JObject;
-			if (completeWhen != null && completeWhen.Properties().Any())
-				return EvaluateCompleteWhen(completeWhen, researches, celestials, fleets);
+			var expanded = BuildableRequirements.ExpandResearchRequirements(new Dictionary<Buildables, int>(reqs.Research));
+			foreach (var (research, required) in expanded.OrderBy(kvp => kvp.Key.ToString())) {
+				var current = researches.GetLevel(research);
+				if (current < required)
+					result[BuildableRequirements.GetShortName(research)] = new GoalProgressEntry {
+						Current = current,
+						Required = required
+					};
+			}
 
-			return false;
+			var maxShipyard = BuildableRequirements.GetMaxShipyardLevel(celestials);
+			if (maxShipyard < reqs.ShipyardLevel)
+				result[BuildableRequirements.GetShortName(Buildables.Shipyard)] = new GoalProgressEntry {
+					Current = maxShipyard,
+					Required = reqs.ShipyardLevel
+				};
+
+			return result;
 		}
 
 		private static int ResolveTargetLevel(JObject unlockTarget, JObject preset, string researchName) {
 			return BuildableRequirements.ResolveTargetLevel(unlockTarget, preset, researchName);
-		}
-
-		private static int GetMaxShipyard(IEnumerable<Celestial> celestials) {
-			int max = 0;
-			foreach (var celestial in celestials) {
-				var shipyard = celestial.Facilities?.Shipyard ?? 0;
-				if (shipyard > max)
-					max = shipyard;
-			}
-			return max;
 		}
 
 		private static long GetTotalShipCount(Buildables ship, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
@@ -212,6 +212,20 @@ namespace TBot.Ogame.Infrastructure {
 				return lte.Value<long>();
 
 			return 0;
+		}
+
+		private static string GetProgressKey(string path) {
+			var parts = path.Split('.');
+			if (parts.Length != 2)
+				return path;
+
+			if (parts[0] == "Research" && Enum.TryParse<Buildables>(parts[1], out var research))
+				return BuildableRequirements.GetShortName(research);
+
+			if (parts[0] == "Ships" && Enum.TryParse<Buildables>(parts[1], out var ship))
+				return BuildableRequirements.GetShortName(ship);
+
+			return path;
 		}
 
 		private static long GetActualValue(string path, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {

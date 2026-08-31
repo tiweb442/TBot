@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using TBot.Ogame.Infrastructure.Enums;
+using TBot.Ogame.Infrastructure.Models;
 
 namespace TBot.Ogame.Infrastructure {
 	public class ShipRequirements {
@@ -50,6 +51,30 @@ namespace TBot.Ogame.Infrastructure {
 
 		public static ShipRequirements? GetShipRequirements(Buildables ship) {
 			return ShipReqs.TryGetValue(ship, out var reqs) ? reqs : null;
+		}
+
+		public static int GetMaxShipyardLevel(IEnumerable<Celestial> celestials) {
+			int max = 0;
+			foreach (var celestial in celestials) {
+				var shipyard = celestial.Facilities?.Shipyard ?? 0;
+				if (shipyard > max)
+					max = shipyard;
+			}
+			return max;
+		}
+
+		public static bool AreShipRequirementsMet(Buildables ship, Researches researches, IEnumerable<Celestial> celestials) {
+			var reqs = GetShipRequirements(ship);
+			if (reqs == null)
+				return false;
+
+			var expanded = ExpandResearchRequirements(new Dictionary<Buildables, int>(reqs.Research));
+			foreach (var (research, required) in expanded) {
+				if (researches.GetLevel(research) < required)
+					return false;
+			}
+
+			return GetMaxShipyardLevel(celestials) >= reqs.ShipyardLevel;
 		}
 
 		public static string GetShortName(Buildables buildable) {
