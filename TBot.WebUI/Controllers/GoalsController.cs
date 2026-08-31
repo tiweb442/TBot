@@ -336,8 +336,9 @@ namespace TBot.WebUI.Controllers {
 				if (apply == null || !apply.Properties().Any())
 					return Json(new { success = false, error = "Preset has no Apply patches." });
 
-				goals["Baselines"] = GoalsService.SnapshotBaselines(root, apply);
-				GoalsService.ApplyPatches(root, apply);
+				var mergedApply = GoalsFocusHelper.BuildMergedApply(preset, root);
+				goals["Baselines"] = GoalsService.SnapshotBaselines(root, mergedApply);
+				GoalsService.ApplyPatches(root, mergedApply);
 				goals["ActiveGoal"] = presetId;
 				goals["ActivatedAt"] = DateTime.UtcNow.ToString("o");
 				root["Goals"] = goals;

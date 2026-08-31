@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using TBot.Common.Logging;
 using Tbot.Helpers;
 using TBot.Model;
@@ -96,7 +98,11 @@ namespace Tbot.Workers.Brain {
 
 				Buildables research;
 
-				if ((bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeAstrophysics || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizePlasmaTechnology || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeEnergyTechnology || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeIntergalacticResearchNetwork) {
+				var goalResearch = TryGetGoalFocusedResearch();
+				if (goalResearch != Buildables.Null) {
+					research = goalResearch;
+					DoLog(LogLevel.Information, $"Active goal focus: prioritizing {research.ToString()} research.");
+				} else if ((bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeAstrophysics || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizePlasmaTechnology || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeEnergyTechnology || (bool) _tbotInstance.InstanceSettings.Brain.AutoResearch.PrioritizeIntergalacticResearchNetwork) {
 					List<Celestial> planets = new();
 					foreach (var p in _tbotInstance.UserData.celestials) {
 						if (p.Coordinate.Type == Celestials.Planet) {
@@ -509,6 +515,31 @@ namespace Tbot.Workers.Brain {
 					}
 					await _tbotOgameBridge.CheckCelestials();
 				}
+			}
+		}
+
+		private Buildables TryGetGoalFocusedResearch() {
+			try {
+				var activeGoal = _tbotInstance.InstanceSettings.Goals.ActiveGoal;
+				if (activeGoal == null)
+					return Buildables.Null;
+
+				var goalId = activeGoal.ToString();
+				if (string.IsNullOrWhiteSpace(goalId))
+					return Buildables.Null;
+
+				var presets = _tbotInstance.InstanceSettings.Goals.Presets;
+				if (presets == null)
+					return Buildables.Null;
+
+				var presetObj = presets[goalId];
+				if (presetObj == null)
+					return Buildables.Null;
+
+				var preset = JObject.Parse(JsonConvert.SerializeObject(presetObj));
+				return GoalsFocusHelper.GetNextMissingGoalResearch(_tbotInstance.UserData.researches, preset);
+			} catch (Exception) {
+				return Buildables.Null;
 			}
 		}
 

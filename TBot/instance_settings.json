@@ -1,4 +1,4 @@
-﻿{
+{
     "Credentials":  {
                         "Universe":  "",
                         "Email":  "",
@@ -585,9 +585,6 @@
                                                                                                          }
                                                                               },
                                                              "Apply":  {
-                                                                           "Brain.AutoResearch.MaxCombustionDrive":  1,
-                                                                           "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                           "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                            "Brain.AutoCargo.Active":  true,
                                                                            "Brain.AutoCargo.CargoType":  "LightFighter",
                                                                            "Brain.AutoCargo.MaxCargosToBuild":  10,
@@ -613,9 +610,6 @@
                                                                                                      }
                                                                             },
                                                            "Apply":  {
-                                                                         "Brain.AutoResearch.MaxCombustionDrive":  2,
-                                                                         "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                         "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "SmallCargo",
                                                                          "Brain.AutoCargo.MaxCargosToBuild":  2,
@@ -644,10 +638,6 @@
                                                                                                               }
                                                                                  },
                                                                 "Apply":  {
-                                                                              "Brain.AutoResearch.MaxCombustionDrive":  3,
-                                                                              "Brain.AutoResearch.MaxEspionageTechnology":  2,
-                                                                              "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                              "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                               "Brain.AutoCargo.Active":  true,
                                                                               "Brain.AutoCargo.CargoType":  "EspionageProbe",
                                                                               "Brain.AutoCargo.MaxCargosToBuild":  10,
@@ -670,16 +660,13 @@
                                                                                                             }
                                                                               },
                                                              "Apply":  {
-                                                                           "Brain.AutoResearch.MaxEnergyTechnology":  1,
-                                                                           "Brain.AutoResearch.MaxImpulseDrive":  5,
-                                                                           "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                           "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                            "Brain.AutoResearch.Transports.Active":  true,
                                                                            "Brain.Transports.Active":  true
                                                                        },
                                                              "UnlockTarget":  {
                                                                                   "Type":  "Research",
-                                                                                  "Name":  "ImpulseDrive"
+                                                                                  "Name":  "ImpulseDrive",
+                                                                                  "TargetLevel":  5
                                                                               }
                                                          },
                                   "UnlockRecycler":  {
@@ -698,11 +685,6 @@
                                                                                                  }
                                                                           },
                                                          "Apply":  {
-                                                                       "Brain.AutoResearch.MaxCombustionDrive":  6,
-                                                                       "Brain.AutoResearch.MaxEnergyTechnology":  3,
-                                                                       "Brain.AutoResearch.MaxShieldingTechnology":  2,
-                                                                       "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                       "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                        "Brain.AutoCargo.Active":  true,
                                                                        "Brain.AutoCargo.CargoType":  "Recycler",
                                                                        "Brain.AutoResearch.Transports.Active":  true,
@@ -726,9 +708,6 @@
                                                                                                      }
                                                                             },
                                                            "Apply":  {
-                                                                         "Brain.AutoResearch.MaxCombustionDrive":  6,
-                                                                         "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                         "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "LargeCargo",
                                                                          "Brain.AutoCargo.MaxCargosToBuild":  2,
@@ -751,9 +730,6 @@
                                                                                                                    }
                                                                                },
                                                               "Apply":  {
-                                                                            "Brain.AutoResearch.MaxComputerTechnology":  6,
-                                                                            "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                            "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                             "Brain.AutoResearch.Transports.Active":  true,
                                                                             "Brain.Transports.Active":  true
                                                                         },
@@ -773,9 +749,6 @@
                                                                                                                     }
                                                                                 },
                                                                "Apply":  {
-                                                                             "Brain.AutoResearch.MaxComputerTechnology":  10,
-                                                                             "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                             "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                              "Brain.AutoResearch.Transports.Active":  true,
                                                                              "Brain.Transports.Active":  true
                                                                          },
@@ -801,12 +774,6 @@
                                                                                                              }
                                                                                },
                                                               "Apply":  {
-                                                                            "Brain.AutoResearch.MaxEspionageTechnology":  4,
-                                                                            "Brain.AutoResearch.MaxImpulseDrive":  3,
-                                                                            "Brain.AutoResearch.MaxAstrophysics":  1,
-                                                                            "Brain.AutoResearch.PrioritizeAstrophysics":  true,
-                                                                            "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                            "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                             "Brain.AutoResearch.Transports.Active":  true,
                                                                             "Brain.Transports.Active":  true
                                                                         },
@@ -835,12 +802,6 @@
                                                                                                      }
                                                                             },
                                                            "Apply":  {
-                                                                         "Brain.AutoResearch.MaxImpulseDrive":  3,
-                                                                         "Brain.AutoResearch.MaxEspionageTechnology":  4,
-                                                                         "Brain.AutoResearch.MaxAstrophysics":  1,
-                                                                         "Brain.AutoResearch.PrioritizeAstrophysics":  true,
-                                                                         "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                         "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "ColonyShip",
                                                                          "Brain.AutoCargo.MaxCargosToBuild":  1,
@@ -869,12 +830,6 @@
                                                                                                              }
                                                                                },
                                                               "Apply":  {
-                                                                            "Brain.AutoResearch.MaxEspionageTechnology":  4,
-                                                                            "Brain.AutoResearch.MaxImpulseDrive":  3,
-                                                                            "Brain.AutoResearch.MaxAstrophysics":  3,
-                                                                            "Brain.AutoResearch.PrioritizeAstrophysics":  true,
-                                                                            "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                            "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                             "Brain.AutoResearch.Transports.Active":  true,
                                                                             "Brain.Transports.Active":  true
                                                                         },
@@ -900,12 +855,6 @@
                                                                                                              }
                                                                                },
                                                               "Apply":  {
-                                                                            "Brain.AutoResearch.MaxEspionageTechnology":  4,
-                                                                            "Brain.AutoResearch.MaxImpulseDrive":  3,
-                                                                            "Brain.AutoResearch.MaxAstrophysics":  6,
-                                                                            "Brain.AutoResearch.PrioritizeAstrophysics":  true,
-                                                                            "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                            "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                             "Brain.AutoResearch.Transports.Active":  true,
                                                                             "Brain.Transports.Active":  true
                                                                         },
@@ -918,7 +867,7 @@
                                   "UnlockPathfinder":  {
                                                            "Order":  13,
                                                            "Label":  "Unlock Pathfinder",
-                                                           "Description":  "Hyperspace Drive 2 chain for Pathfinder (discovery class) (research transports enabled)",
+                                                           "Description":  "Hyperspace Drive 2 chain for Pathfinder (research transports enabled; focus applied automatically on activate)",
                                                            "CompleteWhen":  {
                                                                                 "Research.EnergyTechnology":  {
                                                                                                                   "Gte":  5
@@ -937,18 +886,14 @@
                                                                                                      }
                                                                             },
                                                            "Apply":  {
-                                                                         "Brain.AutoResearch.MaxEnergyTechnology":  5,
-                                                                         "Brain.AutoResearch.MaxShieldingTechnology":  5,
-                                                                         "Brain.AutoResearch.MaxHyperspaceTechnology":  3,
-                                                                         "Brain.AutoResearch.MaxHyperspaceDrive":  2,
-                                                                         "Brain.AutoResearch.OptimizeForStart":  false,
-                                                                         "Brain.AutoResearch.EnsureExpoSlots":  false,
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "Pathfinder",
                                                                          "Brain.AutoCargo.MaxCargosToBuild":  1,
                                                                          "Brain.AutoCargo.MaxCargosToKeep":  1,
                                                                          "Brain.AutoResearch.Transports.Active":  true,
-                                                                         "Brain.Transports.Active":  true
+                                                                         "Brain.Transports.Active":  true,
+                                                                         "Brain.AutoResearch.CheckIntervalMin":  2,
+                                                                         "Brain.AutoResearch.CheckIntervalMax":  4
                                                                      },
                                                            "UnlockTarget":  {
                                                                                 "Type":  "Ship",

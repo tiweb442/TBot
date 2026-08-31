@@ -167,17 +167,7 @@ namespace TBot.Ogame.Infrastructure {
 		}
 
 		private static int ResolveTargetLevel(JObject unlockTarget, JObject preset, string researchName) {
-			if (unlockTarget.TryGetValue("TargetLevel", out var targetToken) && targetToken.Type != JTokenType.Null)
-				return targetToken.Value<int>();
-
-			var apply = preset["Apply"] as JObject;
-			if (apply != null) {
-				var applyKey = $"Brain.AutoResearch.Max{researchName}";
-				if (apply.TryGetValue(applyKey, out var applyValue) && applyValue.Type != JTokenType.Null)
-					return applyValue.Value<int>();
-			}
-
-			return 1;
+			return BuildableRequirements.ResolveTargetLevel(unlockTarget, preset, researchName);
 		}
 
 		private static int GetMaxShipyard(IEnumerable<Celestial> celestials) {
