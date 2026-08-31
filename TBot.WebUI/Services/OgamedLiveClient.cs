@@ -58,6 +58,10 @@ namespace TBot.WebUI.Services {
 			return await GetAsync<List<Fleet>>("/bot/fleets") ?? new List<Fleet>();
 		}
 
+		public async Task<DateTime> GetServerTimeAsync() {
+			return await GetAsync<DateTime>("/bot/server/time");
+		}
+
 		private async Task<T> GetAsync<T>(string resource) {
 			using var response = await _client.GetAsync(resource);
 			response.EnsureSuccessStatusCode();

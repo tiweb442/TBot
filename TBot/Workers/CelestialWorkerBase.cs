@@ -148,10 +148,14 @@ namespace Tbot.Workers {
 			return Task.CompletedTask;
 		}
 
+		protected virtual void LogSleepPause() {
+			DoLog(LogLevel.Information, $"Sleeping... Ending {GetWorkerName()}");
+		}
+
 		private async Task ExecutionWrapper(CancellationToken ct) {
 
 			if (_tbotInstance.UserData.isSleeping == true) {
-				DoLog(LogLevel.Debug, $"Sleeping... Ending {GetWorkerName()}");
+				LogSleepPause();
 				await EndExecution();
 				return;
 			} else if (IsWorkerEnabledBySettings() == false) {

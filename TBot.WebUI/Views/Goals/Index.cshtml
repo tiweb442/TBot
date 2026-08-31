@@ -29,12 +29,23 @@
 	<div class="card mb-3 active-goal-card">
 		<div class="card-header d-flex justify-content-between align-items-center">
 			<span>Active Goal</span>
-			@if (!string.IsNullOrWhiteSpace(Model.ActiveGoal))
-			{
-				<button class="btn btn-sm btn-warning" onclick="onRestoreClick()">Complete &amp; Restore</button>
-			}
+			<div class="d-flex align-items-center gap-2">
+				<span id="sleepStatusBadge"
+					  class="badge sleep-status-badge @(Model.IsSleeping ? "bg-info text-dark" : "d-none")"
+					  title="@(Model.SleepMessage ?? "")">
+					@(Model.IsSleeping ? "Sleeping" : "")
+				</span>
+				@if (!string.IsNullOrWhiteSpace(Model.ActiveGoal))
+				{
+					<button class="btn btn-sm btn-warning" onclick="onRestoreClick()">Complete &amp; Restore</button>
+				}
+			</div>
 		</div>
 		<div class="card-body">
+			<p id="sleepStatusLine"
+			   class="sleep-status-line small mb-2 @(Model.SleepModeActive ? "" : "d-none") @(Model.IsSleeping ? "text-info" : "text-muted")">
+				@(Model.SleepMessage ?? "")
+			</p>
 			@if (string.IsNullOrWhiteSpace(Model.ActiveGoal))
 			{
 				<p class="text-muted mb-0">No goal active.</p>

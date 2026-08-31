@@ -128,6 +128,10 @@ namespace Tbot.Workers.Brain {
 			return !string.IsNullOrWhiteSpace(GetActiveGoalId());
 		}
 
+		protected override void LogSleepPause() {
+			DoLog(LogLevel.Information, "Goals paused for Brain sleep (not hung). Will resume after WakeUp.");
+		}
+
 		public override string GetWorkerName() {
 			return "Goals";
 		}

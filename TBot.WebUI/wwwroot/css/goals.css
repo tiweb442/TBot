@@ -90,6 +90,14 @@
 	font-size: 0.8rem;
 }
 
+.goals-page .sleep-status-badge {
+	font-weight: 500;
+}
+
+.goals-page .sleep-status-line {
+	margin-top: -0.15rem;
+}
+
 @media (max-width: 992px) {
 	.goals-page .preset-list button {
 		white-space: nowrap;

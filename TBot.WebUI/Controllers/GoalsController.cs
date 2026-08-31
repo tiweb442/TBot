@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Tbot.Common.Helpers;
 using Tbot.Common.Settings;
 using TBot.Ogame.Infrastructure;
 using TBot.Ogame.Infrastructure.Models;
@@ -54,6 +55,62 @@ namespace TBot.WebUI.Controllers {
 			return result;
 		}
 
+		private static object ToSleepPayload(SleepModeStatus sleep) {
+			return new {
+				sleepModeActive = sleep.SleepModeActive,
+				isSleeping = sleep.IsSleeping,
+				goToSleep = sleep.GoToSleep,
+				wakeUp = sleep.WakeUp,
+				nextWakeUp = sleep.NextWakeUp?.ToString("o"),
+				message = sleep.Message
+			};
+		}
+
+		private static object ToSleepPayload(GoalsModel model) {
+			return new {
+				sleepModeActive = model.SleepModeActive,
+				isSleeping = model.IsSleeping,
+				goToSleep = model.SleepGoToSleep,
+				wakeUp = model.SleepWakeUp,
+				nextWakeUp = model.NextWakeUp,
+				message = model.SleepMessage
+			};
+		}
+
+		private static void ApplySleepToModel(GoalsModel model, SleepModeStatus sleep) {
+			model.SleepModeActive = sleep.SleepModeActive;
+			model.IsSleeping = sleep.IsSleeping;
+			model.SleepGoToSleep = sleep.GoToSleep;
+			model.SleepWakeUp = sleep.WakeUp;
+			model.NextWakeUp = sleep.NextWakeUp?.ToString("o");
+			model.SleepMessage = sleep.Message;
+		}
+
+		private async Task<(string host, int port, string user, string pass)> GetOgamedConnection(string settingsPath) {
+			var settings = await SettingsService.GetSettings(settingsPath);
+			var host = (string) settings.General.Host ?? "127.0.0.1";
+			var port = int.TryParse((string) settings.General.Port, out var parsedPort) ? parsedPort : 8080;
+			var basicAuthUser = "";
+			var basicAuthPass = "";
+			try {
+				basicAuthUser = (string) settings.Credentials.BasicAuth.Username ?? "";
+				basicAuthPass = (string) settings.Credentials.BasicAuth.Password ?? "";
+			} catch {
+				// Basic auth optional
+			}
+			return (host, port, basicAuthUser, basicAuthPass);
+		}
+
+		private async Task<DateTime> TryGetServerTime(string settingsPath) {
+			try {
+				var (host, port, user, pass) = await GetOgamedConnection(settingsPath);
+				using var client = new OgamedLiveClient(host, port, user, pass);
+				return await client.GetServerTimeAsync();
+			} catch {
+				return DateTime.Now;
+			}
+		}
+
 		private async Task<GoalsModel> BuildGoalsModel(string? instanceSettings) {
 			var instances = await GetInstances();
 			var selectedFile = instanceSettings;
@@ -72,6 +129,9 @@ namespace TBot.WebUI.Controllers {
 			var settingsPath = Path.Combine(GetCurrentDirectory(), selectedFile);
 			var contents = await SettingsService.GetSettingsFileContents(settingsPath);
 			var root = JsonConvert.DeserializeObject<JObject>(contents) ?? new JObject();
+			var now = await TryGetServerTime(settingsPath);
+			ApplySleepToModel(model, SleepModeHelper.ResolveFromSettings(root, now));
+
 			var goals = root["Goals"] as JObject;
 
 			if (goals == null)
@@ -141,14 +201,15 @@ namespace TBot.WebUI.Controllers {
 				activatedAt = model.ActivatedAt,
 				baselines = model.Baselines,
 				presets = model.Presets,
-				currentValues = model.CurrentValues
+				currentValues = model.CurrentValues,
+				sleep = ToSleepPayload(model)
 			});
 		}
 
 		[HttpGet]
 		public async Task<IActionResult> GetPresetStatus(string instanceSettings) {
 			if (string.IsNullOrWhiteSpace(instanceSettings))
-				return Json(new { offline = true, presets = Array.Empty<object>() });
+				return Json(new { offline = true, presets = Array.Empty<object>(), sleep = ToSleepPayload(new SleepModeStatus()) });
 
 			try {
 				var settingsPath = Path.Combine(GetCurrentDirectory(), instanceSettings);
@@ -157,30 +218,25 @@ namespace TBot.WebUI.Controllers {
 				var goals = root["Goals"] as JObject;
 				var presetsObj = goals?["Presets"] as JObject;
 
-				if (presetsObj == null)
-					return Json(new { offline = false, presets = Array.Empty<object>() });
-
-				var settings = await SettingsService.GetSettings(settingsPath);
-				var host = (string) settings.General.Host ?? "127.0.0.1";
-				var port = int.TryParse((string) settings.General.Port, out var parsedPort) ? parsedPort : 8080;
-				var basicAuthUser = "";
-				var basicAuthPass = "";
-				try {
-					basicAuthUser = (string) settings.Credentials.BasicAuth.Username ?? "";
-					basicAuthPass = (string) settings.Credentials.BasicAuth.Password ?? "";
-				} catch {
-					// Basic auth optional
+				if (presetsObj == null) {
+					var emptySleep = SleepModeHelper.ResolveFromSettings(root, DateTime.Now);
+					return Json(new { offline = false, presets = Array.Empty<object>(), sleep = ToSleepPayload(emptySleep) });
 				}
+
+				var (host, port, basicAuthUser, basicAuthPass) = await GetOgamedConnection(settingsPath);
 
 				Researches researches;
 				List<Planet> planets;
 				List<Fleet> fleets;
+				DateTime serverTime;
 				using (var client = new OgamedLiveClient(host, port, basicAuthUser, basicAuthPass)) {
 					researches = await client.GetResearchesAsync();
 					planets = await client.GetPlanetsWithShipsAndFacilitiesAsync();
 					fleets = await client.GetFleetsAsync();
+					serverTime = await client.GetServerTimeAsync();
 				}
 
+				var sleep = SleepModeHelper.ResolveFromSettings(root, serverTime);
 				var celestials = planets.Cast<Celestial>().ToList();
 				var presetStatuses = new List<object>();
 
@@ -216,13 +272,27 @@ namespace TBot.WebUI.Controllers {
 					});
 				}
 
-				return Json(new { offline = false, presets = presetStatuses });
+				return Json(new { offline = false, presets = presetStatuses, sleep = ToSleepPayload(sleep) });
 			} catch {
-				var fallbackPresets = await GetPresetIdsWithoutStatus(instanceSettings);
-				return Json(new {
-					offline = true,
-					presets = fallbackPresets.Select(id => new { id, completed = false, progress = (object?) null })
-				});
+				try {
+					var settingsPath = Path.Combine(GetCurrentDirectory(), instanceSettings);
+					var contents = await SettingsService.GetSettingsFileContents(settingsPath);
+					var root = JsonConvert.DeserializeObject<JObject>(contents) ?? new JObject();
+					var sleep = SleepModeHelper.ResolveFromSettings(root, DateTime.Now);
+					var fallbackPresets = await GetPresetIdsWithoutStatus(instanceSettings);
+					return Json(new {
+						offline = true,
+						presets = fallbackPresets.Select(id => new { id, completed = false, progress = (object?) null }),
+						sleep = ToSleepPayload(sleep)
+					});
+				} catch {
+					var fallbackPresets = await GetPresetIdsWithoutStatus(instanceSettings);
+					return Json(new {
+						offline = true,
+						presets = fallbackPresets.Select(id => new { id, completed = false, progress = (object?) null }),
+						sleep = ToSleepPayload(new SleepModeStatus())
+					});
+				}
 			}
 		}
 

@@ -97,9 +97,36 @@ function formatProgressBadge(progress, completed) {
 	return "Done";
 }
 
+function applySleepStatus(sleep) {
+	const $badge = $("#sleepStatusBadge");
+	const $line = $("#sleepStatusLine");
+
+	if (!$badge.length || !$line.length)
+		return;
+
+	if (!sleep || !sleep.sleepModeActive) {
+		$badge.addClass("d-none").text("").attr("title", "");
+		$line.addClass("d-none").text("").removeClass("text-info text-muted");
+		return;
+	}
+
+	const message = sleep.message || "";
+	$line.removeClass("d-none").text(message);
+
+	if (sleep.isSleeping) {
+		$badge.removeClass("d-none").addClass("bg-info text-dark").text("Sleeping").attr("title", message);
+		$line.removeClass("text-muted").addClass("text-info");
+	} else {
+		$badge.addClass("d-none").text("").attr("title", "");
+		$line.removeClass("text-info").addClass("text-muted");
+	}
+}
+
 function applyPresetStatus(data) {
 	if (!data || !Array.isArray(data.presets))
 		return;
+
+	applySleepStatus(data.sleep);
 
 	const offline = !!data.offline;
 	$("#presetStatusHint").text(offline ? "Live status unavailable (ogamed offline)." : "");

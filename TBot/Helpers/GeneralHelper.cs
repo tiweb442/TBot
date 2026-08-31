@@ -7,27 +7,7 @@ using System.Threading.Tasks;
 namespace Tbot.Helpers {
 	public static class GeneralHelper {
 		public static bool ShouldSleep(DateTime time, DateTime goToSleep, DateTime wakeUp) {
-			if (time >= goToSleep) {
-				if (time >= wakeUp) {
-					if (goToSleep >= wakeUp) {
-						return true;
-					} else {
-						return false;
-					}
-				} else {
-					return true;
-				}
-			} else {
-				if (time >= wakeUp) {
-					return false;
-				} else {
-					if (goToSleep >= wakeUp) {
-						return true;
-					} else {
-						return false;
-					}
-				}
-			}
+			return Tbot.Common.Helpers.SleepModeHelper.ShouldSleep(time, goToSleep, wakeUp);
 		}
 
 		public static int ClampSystem(int system) {
