@@ -150,13 +150,19 @@ namespace TBot.WebUI.Controllers {
 
 					var applyObj = presetObj["Apply"] as JObject;
 					var apply = TokenObjectToDisplay(applyObj);
+					var unlockTargetObj = presetObj["UnlockTarget"] as JObject;
+					var unlockTarget = TokenObjectToDisplay(unlockTargetObj);
+					var mergedApply = GoalsFocusHelper.BuildMergedApply(presetObj, root);
+					var focusPreview = TokenObjectToDisplay(mergedApply);
 
 					model.Presets.Add(new GoalPresetModel {
 						Id = presetProp.Name,
 						Order = presetObj["Order"]?.Value<int>() ?? int.MaxValue,
 						Label = presetObj["Label"]?.Value<string>() ?? presetProp.Name,
 						Description = presetObj["Description"]?.Value<string>() ?? "",
-						Apply = apply
+						UnlockTarget = unlockTarget,
+						Apply = apply,
+						FocusPreview = focusPreview
 					});
 				}
 
@@ -171,12 +177,12 @@ namespace TBot.WebUI.Controllers {
 				model.ActiveGoalLabel = activePreset?.Label ?? model.ActiveGoal;
 
 				if (activePreset != null) {
-					foreach (var key in activePreset.Apply.Keys)
+					foreach (var key in activePreset.FocusPreview.Keys)
 						model.CurrentValues[key] = FormatToken(GoalsService.GetByPath(root, key));
 				}
 			} else {
 				foreach (var preset in model.Presets) {
-					foreach (var key in preset.Apply.Keys) {
+					foreach (var key in preset.FocusPreview.Keys) {
 						if (!model.CurrentValues.ContainsKey(key))
 							model.CurrentValues[key] = FormatToken(GoalsService.GetByPath(root, key));
 					}
@@ -200,7 +206,15 @@ namespace TBot.WebUI.Controllers {
 				activeGoalLabel = model.ActiveGoalLabel,
 				activatedAt = model.ActivatedAt,
 				baselines = model.Baselines,
-				presets = model.Presets,
+				presets = model.Presets.Select(p => new {
+					id = p.Id,
+					order = p.Order,
+					label = p.Label,
+					description = p.Description,
+					unlockTarget = p.UnlockTarget,
+					apply = p.Apply,
+					focusPreview = p.FocusPreview
+				}),
 				currentValues = model.CurrentValues,
 				sleep = ToSleepPayload(model)
 			});

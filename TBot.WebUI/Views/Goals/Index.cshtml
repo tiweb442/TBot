@@ -94,12 +94,35 @@
 												{
 													<p class="text-muted mb-1 small preset-description">@preset.Description</p>
 												}
-												<ul class="apply-list small mb-0">
-													@foreach (var patch in preset.Apply)
-													{
-														<li><code>@patch.Key</code> = @patch.Value</li>
-													}
-												</ul>
+												@if (preset.UnlockTarget.Any())
+												{
+													<p class="small mb-1 preset-unlock-target">
+														<strong>Unlock:</strong>
+														@foreach (var target in preset.UnlockTarget)
+														{
+															<code class="me-1">@target.Key=@target.Value</code>
+														}
+													</p>
+												}
+												@if (preset.FocusPreview.Any())
+												{
+													<p class="small mb-1 text-muted">Focus preview (merged apply):</p>
+													<ul class="apply-list small mb-0 focus-preview-list">
+														@foreach (var patch in preset.FocusPreview)
+														{
+															<li><code>@patch.Key</code> = @patch.Value</li>
+														}
+													</ul>
+												}
+												else if (preset.Apply.Any())
+												{
+													<ul class="apply-list small mb-0">
+														@foreach (var patch in preset.Apply)
+														{
+															<li><code>@patch.Key</code> = @patch.Value</li>
+														}
+													</ul>
+												}
 											</div>
 										</div>
 										<button class="btn btn-sm btn-primary ms-2 preset-activate-btn flex-shrink-0"

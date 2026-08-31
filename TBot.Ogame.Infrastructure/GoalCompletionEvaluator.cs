@@ -79,7 +79,7 @@ namespace TBot.Ogame.Infrastructure {
 			if (type.Equals("Ship", StringComparison.OrdinalIgnoreCase)) {
 				if (!Enum.TryParse<Buildables>(name, out var ship))
 					return false;
-				return EvaluateShipUnlock(ship, researches, celestials, fleets);
+				return EvaluateShipUnlock(ship, preset, researches, celestials, fleets);
 			}
 
 			if (type.Equals("Research", StringComparison.OrdinalIgnoreCase)) {
@@ -125,6 +125,12 @@ namespace TBot.Ogame.Infrastructure {
 						Required = reqs.ShipyardLevel
 					};
 
+				if (result.Count == 0)
+					result[BuildableRequirements.GetShortName(ship)] = new GoalProgressEntry {
+						Current = shipCount,
+						Required = 1
+					};
+
 				return result;
 			}
 
@@ -144,26 +150,15 @@ namespace TBot.Ogame.Infrastructure {
 			return result;
 		}
 
-		private static bool EvaluateShipUnlock(Buildables ship, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
+		private static bool EvaluateShipUnlock(Buildables ship, JObject preset, Researches researches, IEnumerable<Celestial> celestials, IEnumerable<Fleet> fleets) {
 			if (GetTotalShipCount(ship, celestials, fleets) >= 1)
 				return true;
-			return CanBuildShipAnywhere(ship, researches, celestials);
-		}
 
-		private static bool CanBuildShipAnywhere(Buildables ship, Researches researches, IEnumerable<Celestial> celestials) {
-			var reqs = BuildableRequirements.GetShipRequirements(ship);
-			if (reqs == null)
-				return false;
+			var completeWhen = preset["CompleteWhen"] as JObject;
+			if (completeWhen != null && completeWhen.Properties().Any())
+				return EvaluateCompleteWhen(completeWhen, researches, celestials, fleets);
 
-			foreach (var (research, levelNeeded) in reqs.Research) {
-				if (researches.GetLevel(research) < levelNeeded)
-					return false;
-			}
-
-			if (reqs.ShipyardLevel <= 0)
-				return true;
-
-			return GetMaxShipyard(celestials) >= reqs.ShipyardLevel;
+			return false;
 		}
 
 		private static int ResolveTargetLevel(JObject unlockTarget, JObject preset, string researchName) {

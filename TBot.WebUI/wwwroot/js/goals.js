@@ -8,34 +8,22 @@ let _statusPollTimer = null;
 const STATUS_POLL_MS = 45000;
 
 const PROGRESS_ABBR = {
-	CombustionDrive: "CD",
-	ImpulseDrive: "ID",
-	HyperspaceDrive: "HD",
-	EspionageTechnology: "ET",
-	EnergyTechnology: "En",
-	ComputerTechnology: "CT",
-	Astrophysics: "Ap",
-	PlasmaTechnology: "Pl",
-	LaserTechnology: "La",
-	IonTechnology: "Io",
-	HyperspaceTechnology: "HT",
-	WeaponsTechnology: "WT",
-	ShieldingTechnology: "ST",
-	ArmourTechnology: "AT",
+	CD: "CD",
+	ID: "ID",
+	HD: "HD",
+	Esp: "Esp",
+	Energy: "En",
+	Comp: "CT",
+	Astro: "Ap",
+	HST: "HT",
+	ST: "ST",
+	SY: "SY",
 	LightFighter: "LF",
 	SmallCargo: "SC",
 	LargeCargo: "LC",
-	HeavyFighter: "HF",
-	Cruiser: "Cr",
-	BattleShip: "BS",
 	ColonyShip: "CS",
 	Recycler: "Rc",
 	EspionageProbe: "EP",
-	Bomber: "Bo",
-	Destroyer: "Ds",
-	Deathstar: "DS",
-	Battlecruiser: "BC",
-	Reaper: "Rp",
 	Pathfinder: "Pf"
 };
 
@@ -90,7 +78,7 @@ function formatProgressBadge(progress, completed) {
 
 		const parts = key.split(".");
 		const name = parts.length > 1 ? parts[1] : key;
-		const abbr = PROGRESS_ABBR[name] || name.substring(0, 2).toUpperCase();
+		const abbr = PROGRESS_ABBR[name] || PROGRESS_ABBR[key] || name.substring(0, 2).toUpperCase();
 		return `${abbr} ${val.current}/${val.required}`;
 	}
 

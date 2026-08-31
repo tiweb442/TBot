@@ -4,6 +4,8 @@ namespace TBot.WebUI.Models {
 		public int Order { get; set; }
 		public string Label { get; set; } = "";
 		public string Description { get; set; } = "";
+		public Dictionary<string, string> UnlockTarget { get; set; } = new();
 		public Dictionary<string, string> Apply { get; set; } = new();
+		public Dictionary<string, string> FocusPreview { get; set; } = new();
 	}
 }

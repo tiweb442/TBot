@@ -67,6 +67,10 @@ namespace TBot.Ogame.Infrastructure {
 			if (!HasUnlockTarget(unlockTarget))
 				return patches;
 
+			var unlockType = unlockTarget["Type"]?.Value<string>() ?? "";
+			if (unlockType.Equals("Ship", StringComparison.OrdinalIgnoreCase))
+				patches["Brain.AutoMine.Active"] = false;
+
 			var requiredLevels = BuildableRequirements.GetUnlockResearchRequirements(unlockTarget, preset);
 
 			foreach (var (research, settingPath) in ResearchMaxSettingPaths) {

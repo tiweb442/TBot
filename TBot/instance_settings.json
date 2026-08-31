@@ -576,14 +576,6 @@
                                                              "Order":  1,
                                                              "Label":  "Unlock Light Fighter",
                                                              "Description":  "Combustion Drive 1 for Light Fighter (shipyard 1) (research transports enabled)",
-                                                             "CompleteWhen":  {
-                                                                                  "Research.CombustionDrive":  {
-                                                                                                                   "Gte":  1
-                                                                                                               },
-                                                                                  "Ships.LightFighter":  {
-                                                                                                             "Gte":  1
-                                                                                                         }
-                                                                              },
                                                              "Apply":  {
                                                                            "Brain.AutoCargo.Active":  true,
                                                                            "Brain.AutoCargo.CargoType":  "LightFighter",
@@ -601,14 +593,6 @@
                                                            "Order":  2,
                                                            "Label":  "Unlock Small Cargo",
                                                            "Description":  "Early shipyard bootstrap: Combustion Drive 2, build Small Cargo (research transports enabled)",
-                                                           "CompleteWhen":  {
-                                                                                "Research.CombustionDrive":  {
-                                                                                                                 "Gte":  2
-                                                                                                             },
-                                                                                "Ships.SmallCargo":  {
-                                                                                                         "Gte":  1
-                                                                                                     }
-                                                                            },
                                                            "Apply":  {
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "SmallCargo",
@@ -626,17 +610,6 @@
                                                                 "Order":  3,
                                                                 "Label":  "Unlock Espionage Probes",
                                                                 "Description":  "Espionage Technology 2 and Combustion Drive 3 for probes (research transports enabled)",
-                                                                "CompleteWhen":  {
-                                                                                     "Research.EspionageTechnology":  {
-                                                                                                                          "Gte":  2
-                                                                                                                      },
-                                                                                     "Research.CombustionDrive":  {
-                                                                                                                      "Gte":  3
-                                                                                                                  },
-                                                                                     "Ships.EspionageProbe":  {
-                                                                                                                  "Gte":  1
-                                                                                                              }
-                                                                                 },
                                                                 "Apply":  {
                                                                               "Brain.AutoCargo.Active":  true,
                                                                               "Brain.AutoCargo.CargoType":  "EspionageProbe",
@@ -673,17 +646,6 @@
                                                          "Order":  5,
                                                          "Label":  "Unlock Recycler",
                                                          "Description":  "Combustion Drive 6 + Shielding 2 for Recycler (shipyard 4) (research transports enabled)",
-                                                         "CompleteWhen":  {
-                                                                              "Research.CombustionDrive":  {
-                                                                                                               "Gte":  6
-                                                                                                           },
-                                                                              "Research.ShieldingTechnology":  {
-                                                                                                                   "Gte":  2
-                                                                                                               },
-                                                                              "Ships.Recycler":  {
-                                                                                                     "Gte":  1
-                                                                                                 }
-                                                                          },
                                                          "Apply":  {
                                                                        "Brain.AutoCargo.Active":  true,
                                                                        "Brain.AutoCargo.CargoType":  "Recycler",
@@ -699,14 +661,6 @@
                                                            "Order":  6,
                                                            "Label":  "Unlock Large Cargo",
                                                            "Description":  "Raise Combustion Drive cap and build Large Cargo (research transports enabled)",
-                                                           "CompleteWhen":  {
-                                                                                "Research.CombustionDrive":  {
-                                                                                                                 "Gte":  6
-                                                                                                             },
-                                                                                "Ships.LargeCargo":  {
-                                                                                                         "Gte":  1
-                                                                                                     }
-                                                                            },
                                                            "Apply":  {
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "LargeCargo",
@@ -787,20 +741,6 @@
                                                            "Order":  10,
                                                            "Label":  "Unlock Colony Ship",
                                                            "Description":  "Impulse 3, Espionage 4, Astrophysics 1 for colonization (research transports enabled)",
-                                                           "CompleteWhen":  {
-                                                                                "Research.ImpulseDrive":  {
-                                                                                                              "Gte":  3
-                                                                                                          },
-                                                                                "Research.EspionageTechnology":  {
-                                                                                                                     "Gte":  4
-                                                                                                                 },
-                                                                                "Research.Astrophysics":  {
-                                                                                                              "Gte":  1
-                                                                                                          },
-                                                                                "Ships.ColonyShip":  {
-                                                                                                         "Gte":  1
-                                                                                                     }
-                                                                            },
                                                            "Apply":  {
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "ColonyShip",
@@ -868,23 +808,6 @@
                                                            "Order":  13,
                                                            "Label":  "Unlock Pathfinder",
                                                            "Description":  "Hyperspace Drive 2 chain for Pathfinder (research transports enabled; focus applied automatically on activate)",
-                                                           "CompleteWhen":  {
-                                                                                "Research.EnergyTechnology":  {
-                                                                                                                  "Gte":  5
-                                                                                                              },
-                                                                                "Research.ShieldingTechnology":  {
-                                                                                                                     "Gte":  5
-                                                                                                                 },
-                                                                                "Research.HyperspaceTechnology":  {
-                                                                                                                      "Gte":  3
-                                                                                                                  },
-                                                                                "Research.HyperspaceDrive":  {
-                                                                                                                 "Gte":  2
-                                                                                                             },
-                                                                                "Ships.Pathfinder":  {
-                                                                                                         "Gte":  1
-                                                                                                     }
-                                                                            },
                                                            "Apply":  {
                                                                          "Brain.AutoCargo.Active":  true,
                                                                          "Brain.AutoCargo.CargoType":  "Pathfinder",

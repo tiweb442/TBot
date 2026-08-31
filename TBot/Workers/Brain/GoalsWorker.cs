@@ -10,7 +10,6 @@ using Tbot.Helpers;
 using TBot.Ogame.Infrastructure;
 using Tbot.Services;
 using TBot.Common.Logging;
-using TBot.Ogame.Infrastructure;
 using TBot.Ogame.Infrastructure.Enums;
 
 namespace Tbot.Workers.Brain {
@@ -75,6 +74,14 @@ namespace Tbot.Workers.Brain {
 
 				if (!GoalCompletionEvaluator.EvaluatePreset(preset, _tbotInstance.UserData.researches, celestials, fleets)) {
 					DoLog(LogLevel.Information, $"Goal '{activeGoalId}' is not complete yet.");
+					return;
+				}
+
+				var currentActiveGoal = goals["ActiveGoal"]?.Type == JTokenType.Null
+					? null
+					: goals["ActiveGoal"]?.Value<string>();
+				if (string.IsNullOrWhiteSpace(currentActiveGoal)) {
+					DoLog(LogLevel.Information, "Active goal already null, skipping restore write.");
 					return;
 				}
 

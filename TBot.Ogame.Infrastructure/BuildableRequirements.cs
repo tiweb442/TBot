@@ -58,7 +58,7 @@ namespace TBot.Ogame.Infrastructure {
 				Buildables.ImpulseDrive => "ID",
 				Buildables.HyperspaceDrive => "HD",
 				Buildables.EspionageTechnology => "Esp",
-				Buildables.ShieldingTechnology => "Shield",
+				Buildables.ShieldingTechnology => "ST",
 				Buildables.HyperspaceTechnology => "HST",
 				Buildables.EnergyTechnology => "Energy",
 				Buildables.ComputerTechnology => "Comp",
