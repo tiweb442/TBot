@@ -254,6 +254,12 @@ namespace Tbot.Services {
 					throw new MissingConfigurationException($"Instance \"{alias}\" cannot be initialized. \"{settingsPath}\" does not exist");
 				} else {
 
+					var settings = await SettingsService.GetSettings(settingsPath);
+					if (!SettingsService.HasValidCredentials(settings)) {
+						_logger.WriteLog(LogLevel.Warning, LogSender.Main, $"Instance \"{alias}\" skipped: \"{settingsPath}\" has no credentials");
+						return null;
+					}
+
 					var scope = _scopeFactory.CreateScope();
 					var tBotInstance = scope.ServiceProvider.GetRequiredService<ITBotMain>();
 

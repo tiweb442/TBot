@@ -24,6 +24,7 @@ namespace Tbot.Workers {
 		protected Dictionary<string, Timer> timers = new();
 		
 		private SemaphoreSlim _sem = new SemaphoreSlim(1, 1);
+		private readonly SemaphoreSlim _stopLock = new SemaphoreSlim(1, 1);
 		private AsyncTimer _timer = null;
 
 		protected IWorkerFactory _workerFactory;
@@ -73,16 +74,21 @@ namespace Tbot.Workers {
 			await StartWorker(ct, Timeout.InfiniteTimeSpan, dueTime);
 		}
 		public async Task StopWorker() {
-			// Stop also all the timers
-			RemoveAllTimers();
-			if (_timer != null) {
-				DoLog(LogLevel.Information, $"Closing Worker \"{GetWorkerName()}\"..");
-				await _timer.DisposeAsync();
-				DoLog(LogLevel.Information, $"Worker \"{GetWorkerName()}\" closed!");
-				_timer = null;
-			}
-			foreach (var worker in _celestialWorkers.Values) {
-				await worker.StopWorker();
+			await _stopLock.WaitAsync();
+			try {
+				RemoveAllTimers();
+				if (_timer != null) {
+					var timer = _timer;
+					_timer = null;
+					DoLog(LogLevel.Information, $"Closing Worker \"{GetWorkerName()}\"..");
+					await timer.DisposeAsync();
+					DoLog(LogLevel.Information, $"Worker \"{GetWorkerName()}\" closed!");
+				}
+				foreach (var worker in _celestialWorkers.Values.ToList()) {
+					await worker.StopWorker();
+				}
+			} finally {
+				_stopLock.Release();
 			}
 		}
 		public void ChangeWorkerPeriod(long periodMs) {
@@ -127,10 +133,11 @@ namespace Tbot.Workers {
 			}
 		}
 		public void ReleaseWorker() {
-			if (_sem.CurrentCount == 1) {
+			try {
+				if (_sem.CurrentCount == 0)
+					_sem.Release();
+			} catch (SemaphoreFullException) {
 				DoLog(LogLevel.Warning, $"{GetWorkerName()} already released...");
-			} else {
-				_sem.Release();
 			}
 		}
 
@@ -169,8 +176,14 @@ namespace Tbot.Workers {
 				return;
 			}
 
+			bool acquired = false;
 			try {
-				await WaitWorker();
+				try {
+					await _sem.WaitAsync(_ct);
+					acquired = true;
+				} catch (OperationCanceledException) {
+					return;
+				}
 
 				ct.ThrowIfCancellationRequested();
 
@@ -182,11 +195,12 @@ namespace Tbot.Workers {
 				else {
 					DoLog(LogLevel.Information, $"{GetWorkerName()} Stopped.");
 				}
-				
+
 			} catch(OperationCanceledException) {
 				// OK
 			} finally {
-				ReleaseWorker();
+				if (acquired)
+					ReleaseWorker();
 			}
 		}
 

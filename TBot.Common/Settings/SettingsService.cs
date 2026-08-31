@@ -86,6 +86,14 @@ namespace Tbot.Common.Settings {
 			}
 		}
 
+		public static bool HasValidCredentials(dynamic settings) {
+			if (!IsSettingSet(settings, "Credentials"))
+				return false;
+			string email = settings.Credentials.Email as string ?? "";
+			string universe = settings.Credentials.Universe as string ?? "";
+			return !string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(universe);
+		}
+
 		public static T GetSetting<T>(dynamic setting, string property, T defValue) {
 			if (IsSettingSet(setting, property))
 				return (T) setting[property];

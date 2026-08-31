@@ -547,14 +547,28 @@ namespace Tbot.Services {
 				}
 
 				log(LogLevel.Information, LogSender.Tbot, "Reloading Settings file");
-				InstanceSettings = await SettingsService.GetSettings(InstanceSettingsPath);
+				var newSettings = await SettingsService.GetSettings(InstanceSettingsPath);
+				if (!SettingsService.HasValidCredentials(newSettings)) {
+					log(LogLevel.Warning, LogSender.Tbot, "Settings reload skipped: file has no credentials (template or empty file).");
+					cts = new();
+					await HandleSleepModeAsync(null);
+					_lastReloadFinished = DateTime.Now;
+					return;
+				}
+				InstanceSettings = newSettings;
 
 				cts = new();
 				// If wakeUp, then all features will be restored
 				await HandleSleepModeAsync(null);
 				_lastReloadFinished = DateTime.Now;
-			}
-			finally {
+			} catch (Exception e) {
+				log(LogLevel.Error, LogSender.Tbot, $"Settings reload failed: {e.Message}");
+				log(LogLevel.Warning, LogSender.Tbot, $"Stacktrace: {e.StackTrace}");
+				if (cts.IsCancellationRequested) {
+					cts = new();
+					await HandleSleepModeAsync(null);
+				}
+			} finally {
 				_settingsReloadSemaphore.Release();
 			}
 			

@@ -15,6 +15,7 @@ namespace Tbot.Services {
 		private Action _watchFunc;
 		private string _absFpToWatch;
 		private SemaphoreSlim _changedSem = new SemaphoreSlim(1, 1);
+		private CancellationTokenSource _debounceCts;
 		private PhysicalFileProvider p;
 		private IChangeToken changeToken;
 		private IDisposable changeCallback;
@@ -33,6 +34,8 @@ namespace Tbot.Services {
 		}
 
 		public void deinitWatch() {
+			_debounceCts?.Cancel();
+			_debounceCts = null;
 			if (changeCallback != null) {
 				changeCallback.Dispose();
 				changeCallback = null;
@@ -42,10 +45,21 @@ namespace Tbot.Services {
 		private async void onChanged(object state) {
 
 			await _changedSem.WaitAsync();
-			_watchFunc();
-			_changedSem.Release();
+			try {
+				_debounceCts?.Cancel();
+				_debounceCts = new CancellationTokenSource();
+				var debounceToken = _debounceCts.Token;
+				try {
+					await Task.Delay(500, debounceToken);
+				} catch (OperationCanceledException) {
+					return;
+				}
 
-			initWatch();
+				_watchFunc();
+			} finally {
+				_changedSem.Release();
+				initWatch();
+			}
 		}
 	}
 }
